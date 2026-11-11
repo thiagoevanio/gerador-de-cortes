@@ -5,6 +5,9 @@ Como funciona: você publica uma "Release" no seu repositório do GitHub com o .
 (ou só cria a release, que o GitHub já gera o .zip do código). O programa compara a versão
 da release (ex: v3.1.0) com o VERSAO.txt e, se for mais nova, baixa e troca os arquivos —
 sem mexer nas suas configurações, contas, cortes e gravações.
+
+Se a pasta do projeto for um repositório git (o jeito recomendado), a atualização é feita com
+'git pull' e é recusada enquanto houver alteração sua não salva (commit) — nada é sobrescrito.
 """
 from __future__ import annotations
 
@@ -51,7 +54,53 @@ def verificar(repo):
     return _tupla(nova) > _tupla(versao_atual()), nova.lstrip("v"), zip_url, rel.get("body") or ""
 
 
+def _git(*args):
+    return subprocess.run(["git", *args], cwd=PASTA, capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+
+
+def em_git():
+    """O projeto está num repositório git (com o programa git instalado)?"""
+    return (PASTA / ".git").exists() and shutil.which("git") is not None
+
+
+def mudancas_locais():
+    """Arquivos do projeto alterados e ainda não salvos (commit) no git."""
+    r = _git("status", "--porcelain", "--untracked-files=no")
+    return [linha[3:] for linha in r.stdout.splitlines() if linha.strip()]
+
+
+def _instalar_requisitos(antes, log):
+    depois = (PASTA / "requirements.txt").read_text(encoding="utf-8") if (PASTA / "requirements.txt").exists() else ""
+    if depois != antes:
+        log("Instalando bibliotecas novas...")
+        py = sys.executable.replace("pythonw.exe", "python.exe")
+        subprocess.run([py, "-m", "pip", "install", "-r", str(PASTA / "requirements.txt")],
+                       capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+
+
+def _aplicar_git(log):
+    """Projeto no git: atualiza com 'git pull' — nunca sobrescreve mudança local."""
+    pendentes = mudancas_locais()
+    if pendentes:
+        raise RuntimeError(f"{len(pendentes)} arquivo(s) foram alterados aqui e ainda não estão salvos no git "
+                           f"({', '.join(pendentes[:3])}{'...' if len(pendentes) > 3 else ''}). Salve (commit) "
+                           "antes de atualizar, pra nada se perder.")
+    req_antes = (PASTA / "requirements.txt").read_text(encoding="utf-8") if (PASTA / "requirements.txt").exists() else ""
+    log("Projeto no git: atualizando com 'git pull' (o que é seu não é sobrescrito)...")
+    r = _git("pull", "--ff-only")
+    if r.returncode != 0:
+        raise RuntimeError("O git não conseguiu juntar a versão nova com a sua (as duas mudaram). Nada foi "
+                           f"alterado. Detalhe: {(r.stderr or r.stdout).strip()[:200]}")
+    log("✅ " + ((r.stdout or "").strip().splitlines() or ["Atualizado."])[-1][:200])
+    _instalar_requisitos(req_antes, log)
+    log("Feche e abra o programa pra usar a versão nova.")
+    return True
+
+
 def aplicar(zip_url, nova, log=print):
+    if em_git():                       # com git, o histórico protege tudo: nada de copiar por cima
+        return _aplicar_git(log)
     log("Baixando a nova versão...")
     req = urllib.request.Request(zip_url, headers={"User-Agent": "cortes916"})
     with urllib.request.urlopen(req, timeout=120) as r:
@@ -88,11 +137,6 @@ def aplicar(zip_url, nova, log=print):
         trocados += 1
     ARQ_VERSAO.write_text(nova + "\n", encoding="utf-8")
     log(f"✅ {trocados} arquivo(s) atualizados (cópia da versão anterior em _versao_anterior).")
-    req_depois = (PASTA / "requirements.txt").read_text(encoding="utf-8")
-    if req_depois != req_antes:
-        log("Instalando bibliotecas novas...")
-        py = sys.executable.replace("pythonw.exe", "python.exe")
-        subprocess.run([py, "-m", "pip", "install", "-r", str(PASTA / "requirements.txt")],
-                       capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+    _instalar_requisitos(req_antes, log)
     log("Feche e abra o programa pra usar a versão nova.")
     return True
