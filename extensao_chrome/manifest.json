@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Cortes 9:16 - Botão Cortar",
+  "version": "2.3",
+  "description": "Grava a live que você abrir, avisa quando o chat explode e corta com um clique (Twitch, Kick e YouTube).",
+  "permissions": [
+    "notifications",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8765/*",
+    "http://localhost:8765/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icone128.png",
+    "48": "icone48.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.twitch.tv/*",
+        "https://kick.com/*"
+      ],
+      "js": [
+        "live.js"
+      ],
+      "css": [
+        "content.css"
+      ]
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "youtube.js"
+      ],
+      "css": [
+        "content.css"
+      ]
+    }
+  ]
+}

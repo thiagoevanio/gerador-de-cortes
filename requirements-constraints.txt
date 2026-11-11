@@ -1,0 +1,11 @@
+# Versões diretas presentes no ambiente de validação em 02/11/2026.
+yt-dlp==2026.10.26
+streamlink==8.6.3
+faster-whisper==1.2.1
+numpy==2.5.4
+Pillow==13.0.0
+opencv-python-headless==5.0.0.93
+google-api-python-client==2.201.0
+google-auth-oauthlib==1.5.0
+openpyxl==3.1.5
+qrcode==8.2

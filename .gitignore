@@ -1,0 +1,44 @@
+# dados pessoais — nunca subir pro GitHub
+config.json
+canais.json
+client_secret.json
+token_youtube*.json
+estado.json
+agenda_postagens.json
+aprendizado.json
+tendencias.json
+resultados_extra.json
+monitor.log
+parar.flag
+cortes_prontos/
+gravacoes/
+_versao_anterior/
+__pycache__/
+
+_backup_melhorias_*/
+fila_tarefas.sqlite3*
+
+_backup_melhorias_lote*/
+
+.render.lock
+
+metricas.sqlite3*
+tendencias.lock
+feedback_editorial/
+analises/
+
+consumo_ia.sqlite3*
+_validacao/
+
+_backup_finalizacao_*/
+_jobs/
+
+# testes e saídas locais
+_teste_*/
+diagnostico/
+*.lock
+.render.lock
+
+# suas músicas (só o LEIA-ME vai pro repositório)
+musicas/*
+!musicas/LEIA-ME.txt

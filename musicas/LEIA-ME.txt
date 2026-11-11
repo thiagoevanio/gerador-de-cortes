@@ -1,0 +1,17 @@
+MÚSICA DE FUNDO DOS CORTES
+==========================
+Coloque aqui músicas LIVRES DE DIREITOS AUTORAIS (mp3, m4a, wav, ogg...).
+Músicas comerciais (de artistas/gravadoras) podem tirar o som do vídeo ou derrubar o corte.
+
+Boas fontes grátis: Biblioteca de Áudio do YouTube (YouTube Studio > Biblioteca de áudio),
+Pixabay Music, Free Music Archive (licença CC0/CC-BY).
+
+Separe por clima (a IA já diz o tom de cada corte e o sistema escolhe a pasta certa):
+  animada/      humor, gameplay, reação
+  tensa/        polêmica, treta, choque, suspense
+  emocionante/  emoção, superação
+  calma/        informativo, reflexão, podcast
+Arquivos soltos aqui mesmo (fora das pastas) servem para qualquer clima.
+
+O volume abaixa sozinho quando alguém fala e volta nas pausas.
+Desligar: aba Visual > "Música de fundo". Volume: "musica_volume" no config.json (padrão 0.16).

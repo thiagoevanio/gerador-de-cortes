@@ -1,0 +1,11 @@
+-c requirements-constraints.txt
+yt-dlp
+streamlink
+faster-whisper
+numpy
+Pillow
+opencv-python-headless
+google-api-python-client
+google-auth-oauthlib
+openpyxl
+qrcode
