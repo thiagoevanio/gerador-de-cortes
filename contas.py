@@ -285,11 +285,75 @@ def instalar_local(log):
         log("❌ O Ollama não iniciou. Reinicie o PC e tente de novo.")
         return False
     modelo = cortes.MODELO_LOCAL
-    log(f"Baixando o modelo {modelo} (uns 2 GB, só na primeira vez)...")
+    if modelo_baixado(modelo):
+        log(f"✅ O modelo {modelo} já está no PC — não precisa baixar de novo.")
+        return True
+    info = next((m for m in MODELOS_LOCAIS if m["id"] == modelo), None)
+    tamanho = f"{info['gb']:.1f} GB".replace(".", ",") if info else "alguns GB"
+    log(f"Baixando o modelo {modelo} ({tamanho}, só desta vez — depois fica salvo no PC)...")
     rc = rodar_mostrando([exe, "pull", modelo], log)
     log("✅ IA local pronta! Ela é grátis mas mais lenta e mais simples que Claude/Codex."
         if rc == 0 else "❌ Não consegui baixar o modelo.")
     return rc == 0
+
+
+# Modelos da IA local, do mais leve ao mais forte (tamanho do download e memória pedida).
+MODELOS_LOCAIS = [
+    {"id": "qwen2.5:3b", "nome": "Leve", "gb": 1.9, "ram": 8,
+     "dica": "roda em qualquer PC; respostas mais simples"},
+    {"id": "qwen2.5:7b", "nome": "Média", "gb": 4.7, "ram": 16,
+     "dica": "bem melhor nos títulos e perguntas"},
+    {"id": "gemma3:12b", "nome": "Forte", "gb": 8.1, "ram": 16,
+     "dica": "ótima em português; mais rápida com placa de vídeo"},
+    {"id": "qwen2.5:14b", "nome": "Máxima", "gb": 9.0, "ram": 32,
+     "dica": "a melhor; pede PC forte ou placa de vídeo com 12 GB"},
+]
+
+
+def rotulo_modelo(m):
+    return f"{m['nome']} — {m['id']} ({m['gb']:.1f} GB, {m['ram']} GB de RAM)".replace(".", ",", 1)
+
+
+def memoria_pc_gb():
+    """Memória RAM total do PC, em GB (0 se não der pra saber)."""
+    try:
+        import ctypes
+
+        class Mem(ctypes.Structure):
+            _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                        ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                        ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                        ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                        ("sullAvailExtendedVirtual", ctypes.c_ulonglong)]
+        m = Mem()
+        m.dwLength = ctypes.sizeof(Mem)
+        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m))
+        return round(m.ullTotalPhys / 1024 ** 3)
+    except Exception:
+        return 0
+
+
+def modelo_recomendado(ram_gb=None):
+    """O modelo mais forte que cabe com folga na memória do PC."""
+    ram = memoria_pc_gb() if ram_gb is None else ram_gb
+    cabem = [m for m in MODELOS_LOCAIS if m["ram"] <= ram] if ram else []
+    return (cabem[-1] if cabem else MODELOS_LOCAIS[0])["id"]
+
+
+def modelos_baixados():
+    """Modelos que já estão no PC (pergunta ao Ollama; vazio se ele estiver desligado)."""
+    import json
+    import urllib.request
+    try:
+        with urllib.request.urlopen(cortes.URL_OLLAMA + "/api/tags", timeout=3) as r:
+            return [m.get("name", "") for m in json.loads(r.read().decode("utf-8")).get("models", [])]
+    except Exception:
+        return []
+
+
+def modelo_baixado(modelo):
+    nomes = modelos_baixados()
+    return modelo in nomes or (":" not in modelo and f"{modelo}:latest" in nomes)
 
 
 def conectar_local(log):
