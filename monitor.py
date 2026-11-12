@@ -794,6 +794,75 @@ status(); setInterval(status,10000);
 </script></body></html>"""
 
 
+MINI_HTML = """<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
+<title>Live - Cortes 9:16</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--v:#d90f0f;--a:#ffd600;--f:#111114;--c:#1f1f25;--t:#f2f2f2;--g:#9a9aa5}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--f);color:var(--t);font-family:Segoe UI,Arial,sans-serif;display:flex;flex-direction:column;font-size:13px}
+#abas{display:flex;gap:4px;padding:5px;background:var(--c);overflow-x:auto}
+#abas button{border:0;border-radius:5px;padding:4px 8px;background:#34343e;color:#fff;cursor:pointer;white-space:nowrap;font-size:12px}
+#abas button.on{background:var(--v)}
+#player{flex:1;background:#000;min-height:0;position:relative}#player iframe{width:100%;height:100%;border:0}
+.vazio{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--g);padding:16px}
+#info{padding:6px 8px;background:var(--c)}
+#calor{height:6px;background:#2e2e36;border-radius:3px;overflow:hidden;margin:4px 0}#calor div{height:100%;background:linear-gradient(90deg,#ffd600,#d90f0f);width:0}
+#linha{display:flex;gap:6px;align-items:center;justify-content:space-between}
+#cortar{border:0;border-radius:5px;padding:5px 9px;font-weight:700;background:var(--v);color:#fff;cursor:pointer}
+#momentos{color:var(--g);font-size:12px;margin-top:3px;max-height:48px;overflow:auto}
+</style></head><body>
+<div id="abas"></div><div id="player"><div class="vazio">Esperando um canal entrar ao vivo...<br>O robô está vigiando os canais da aba Automático.</div></div>
+<div id="info"><div id="linha"><span id="txt">conectando ao robô...</span><button id="cortar" hidden>✂ CORTAR AGORA</button></div>
+<div id="calor"><div></div></div><div id="momentos"></div></div>
+<script>
+const fetchOriginal = window.fetch.bind(window);
+window.fetch = (url, opcoes={}) => fetchOriginal(url, { ...opcoes, method: new URL(url, location.href).pathname === "/status" ? "GET" : "POST",
+  headers: { ...opcoes.headers, "X-Cortes-Token": "__TOKEN_SESSAO__" } });
+const q = new URLSearchParams(location.search);
+let fixo = q.get("canal") ? {canal: q.get("canal").toLowerCase(), plataforma: q.get("plat") || "twitch", chave: "fixo"} : null;
+let atual = null, mostrado = "";
+function src(l){
+  const c = encodeURIComponent(l.canal);
+  if (l.plataforma === "kick") return `https://player.kick.com/${c}?autoplay=true&muted=true`;
+  if (l.plataforma === "youtube") return l.video_id ? `https://www.youtube.com/embed/${encodeURIComponent(l.video_id)}?autoplay=1&mute=1` : "";
+  return `https://player.twitch.tv/?channel=${c}&parent=${location.hostname}&muted=true&autoplay=true`;
+}
+function mostrar(l){
+  atual = l; const u = src(l), pl = document.getElementById("player");
+  if (u === mostrado) return; mostrado = u;
+  pl.replaceChildren();
+  if (!u) { const d = document.createElement("div"); d.className = "vazio";
+    d.textContent = "Essa live do YouTube não deixa assistir aqui. O robô continua gravando e cortando normalmente."; pl.appendChild(d); return; }
+  const f = document.createElement("iframe"); f.src = u; f.allow = "autoplay; fullscreen"; f.allowFullscreen = true; pl.appendChild(f);
+}
+document.getElementById("cortar").onclick = async () => {
+  if (!atual) return; const t = document.getElementById("txt"); t.textContent = "enviando...";
+  try { const r = await (await fetch("/cortar?" + new URLSearchParams({canal: atual.canal, plat: atual.plataforma}))).json(); t.textContent = r.msg; }
+  catch (e) { t.textContent = "O robô está desligado."; }
+};
+async function status(){
+  let s; try { s = await (await fetch("/status")).json(); } catch (e) { document.getElementById("txt").textContent = "⚠ robô desligado"; return; }
+  const lives = Object.entries(s.lives || {}).map(([chave, l]) => ({...l, chave}));
+  if (fixo && !lives.some(l => l.canal === fixo.canal)) lives.unshift(fixo);
+  const abas = document.getElementById("abas"); abas.replaceChildren();
+  if (!atual || !lives.some(l => l.chave === atual.chave)) atual = lives.find(l => fixo && l.canal === fixo.canal) || lives[0] || null;
+  for (const l of lives) {
+    const b = document.createElement("button"); b.textContent = (l.desde ? "🔴 " : "") + l.canal;
+    if (atual && l.chave === atual.chave) b.className = "on"; b.onclick = () => { atual = l; status(); }; abas.appendChild(b);
+  }
+  abas.hidden = lives.length < 2;
+  if (!atual) return;
+  mostrar(atual);
+  const l = lives.find(x => x.chave === atual.chave) || atual, min = l.desde ? Math.round((Date.now()/1000 - l.desde) / 60) : 0;
+  document.getElementById("txt").textContent = l.desde ? `🔴 gravando há ${min} min · ${l.cortes} corte(s) · calor ${Math.round(l.calor || 0)}%` : `👀 assistindo ${l.canal} — o robô corta quando ele estiver nos canais vigiados`;
+  document.getElementById("cortar").hidden = !l.desde || l.plataforma === "youtube";
+  document.querySelector("#calor div").style.width = Math.min(100, l.calor || 0) + "%";
+  document.getElementById("momentos").textContent = (l.momentos || []).slice(-3).reverse().map(m => `${m.hora} nota ${m.nota}: ${(m.motivos || []).join(", ")} ${m.status ? "(" + m.status + ")" : ""}`).join("  ·  ");
+}
+status(); setInterval(status, 5000);
+</script></body></html>"""
+
+
 class Painel(BaseHTTPRequestHandler):
     def _origem_permitida(self):
         host = self.headers.get('Host', '')
@@ -880,6 +949,8 @@ class Painel(BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(url.query).items()}
         if url.path in ("/", "/painel"):
             return self._enviar(200, PAINEL_HTML.replace('__TOKEN_SESSAO__', TOKEN_SESSAO), "text/html")
+        if url.path == "/mini":                     # janelinha da live (aba Automático)
+            return self._enviar(200, MINI_HTML.replace('__TOKEN_SESSAO__', TOKEN_SESSAO), "text/html")
         if url.path == '/sessao':
             return self._enviar(200, json.dumps(dict(token=TOKEN_SESSAO)))
         if url.path == "/status":
@@ -1186,6 +1257,8 @@ def atualizar_estado(gravacoes, fila, ocupado):
     ESTADO_PAINEL["lives"] = {c: {"canal": g.canal, "plataforma": g.plataforma, "desde": g.desde,
                                   "cortes": len(g.cortes_feitos), "pela_extensao": g.pela_extensao,
                                   "titulo": g.meta.get("title", ""), "calor": g.termometro.calor_pct(),
+                                  "video_id": (g.meta.get("id") or "") if g.plataforma == "youtube" else "",
+                                  "url": g.url,
                                   "sensibilidade": g.termometro.sensibilidade,
                                   "momentos": [{"id": m["id"], "hora": m["hora"], "motivos": m["motivos"],
                                                 "nota": m["nota"],
