@@ -1,4 +1,7 @@
-﻿# Instalador do Gerador de Cortes 9:16 — instala tudo sozinho (pede permissão de administrador)
+﻿# Instalador do Gerador de Cortes 9:16 — examina o PC e instala tudo sozinho (pede permissão de administrador)
+# Passo 1: garante um Python 3.12 (winget ou python.org, com a assinatura conferida).
+# Passo 2: o doutor (doutor.py) faz o resto: ambiente .venv, bibliotecas, Visual C++, ffmpeg e PATH,
+#          lendo os erros e tentando de novo; se ainda falhar, pede o diagnóstico à IA.
 $ErrorActionPreference = "Continue"
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -8,6 +11,9 @@ if (-not $admin) {
 }
 Set-Location $PSScriptRoot
 $Host.UI.RawUI.WindowTitle = "Instalador - Gerador de Cortes 9:16"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$env:PYTHONUTF8 = "1"
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 
 function Titulo($t) { Write-Host ""; Write-Host "===== $t =====" -ForegroundColor Yellow }
 function Ok($t) { Write-Host "  OK  $t" -ForegroundColor Green }
@@ -16,47 +22,73 @@ function Atualizar-Path {
     $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
                 [Environment]::GetEnvironmentVariable("Path", "User")
 }
+function Tem-Winget { return [bool](Get-Command winget -ErrorAction SilentlyContinue) }
 function Instalar($id, $nome) {
+    if (-not (Tem-Winget)) { Aviso "winget indisponível: não deu pra instalar $nome por aqui."; return }
     Write-Host "  instalando $nome..."
-    winget install -e --id $id --accept-package-agreements --accept-source-agreements --silent | Out-Host
+    winget install -e --id $id --accept-package-agreements --accept-source-agreements --silent --disable-interactivity | Out-Host
     Atualizar-Path
 }
-function Achar-Python {
-    foreach ($c in @((Get-Command python -ErrorAction SilentlyContinue).Source,
-                     "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
-                     "C:\Program Files\Python312\python.exe")) {
+function Achar-Python312 {
+    # nunca usa o 'python' falso da Microsoft Store (WindowsApps) nem outra versão (3.13, 3.14...)
+    $candidatos = @()
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        $c = & py -3.12 -c "import sys;print(sys.executable)" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $c) { $candidatos += "$c".Trim() }
+    }
+    $candidatos += @("$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
+                     "C:\Program Files\Python312\python.exe",
+                     (Get-Command python -ErrorAction SilentlyContinue).Source)
+    foreach ($c in $candidatos) {
         if ($c -and (Test-Path $c) -and ($c -notlike "*WindowsApps*")) {
-            $v = & $c --version 2>&1
-            if ("$v" -like "Python 3*") { return $c }
+            $v = & $c -c "import sys;print('%d.%d' % sys.version_info[:2])" 2>$null
+            if ("$v".Trim() -eq "3.12") { return $c }
         }
     }
     return $null
 }
+function Baixar-Python {
+    $url = "https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe"
+    $exe = Join-Path $env:TEMP "python-3.12.10-amd64.exe"
+    Write-Host "  baixando o Python 3.12 do python.org..."
+    try { Invoke-WebRequest -Uri $url -OutFile $exe -UseBasicParsing } catch { Aviso "download falhou: $_"; return }
+    $s = Get-AuthenticodeSignature -LiteralPath $exe
+    if ($s.Status -ne "Valid" -or $s.SignerCertificate.Subject -notlike "*Python Software Foundation*") {
+        Aviso "o instalador baixado não tem a assinatura da Python Software Foundation. Não vou rodar."; return
+    }
+    Write-Host "  instalando (uns 2 minutos)..."
+    Start-Process $exe -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_launcher=1 Include_test=0 Include_tcltk=1 Include_pip=1" -Wait
+    Atualizar-Path
+}
 
 Write-Host ""
 Write-Host "   GERADOR DE CORTES 9:16 - INSTALADOR" -ForegroundColor White -BackgroundColor DarkRed
-Write-Host "   Isso instala tudo que o programa precisa. Pode demorar alguns minutos."
+Write-Host "   Examina o PC e instala o que falta. Pode demorar de 5 a 20 minutos (depende da internet)."
 
-if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-    Aviso "O 'winget' não está disponível. Instale o 'Instalador de Aplicativo' (App Installer) pela Microsoft Store e rode de novo."
-    Read-Host "Aperte Enter para sair"; exit
+Titulo "1/5  Python 3.12"
+$py = Achar-Python312
+if (-not $py) {
+    Write-Host "  O programa usa o Python 3.12 (as bibliotecas não funcionam no 3.13/3.14). Ele fica"
+    Write-Host "  separado dos outros Pythons do PC, sem atrapalhar nada."
+    Instalar "Python.Python.3.12" "Python 3.12"
+    $py = Achar-Python312
+    if (-not $py) { Baixar-Python; $py = Achar-Python312 }
+}
+if ($py) { Ok "Python 3.12: $py" } else {
+    Aviso "Não consegui instalar o Python 3.12."
+    Write-Host "  Instale à mão: https://www.python.org/downloads/release/python-31210/"
+    Write-Host "  (marque 'Add python.exe to PATH') e rode o INSTALAR.bat de novo."
+    Read-Host "Enter para sair"; exit
 }
 
-Titulo "1/5  Python"
-$py = Achar-Python
-if (-not $py) { Instalar "Python.Python.3.12" "Python 3.12"; $py = Achar-Python }
-if ($py) { Ok "Python: $py" } else { Aviso "Não consegui instalar o Python."; Read-Host "Enter para sair"; exit }
+Titulo "2/5  Examinando o PC e instalando o que falta"
+& $py doutor.py --consertar
+$okDoutor = ($LASTEXITCODE -eq 0)
+$prog = (Get-Content (Join-Path $PSScriptRoot "python_do_programa.txt") -ErrorAction SilentlyContinue | Select-Object -First 1)
+if (-not $prog -or -not (Test-Path $prog)) { $prog = $py }
+if ($okDoutor) { Ok "Python, bibliotecas, Visual C++ e ffmpeg prontos" } else { Aviso "Ainda falta algo — vou tentar de novo com ajuda da IA depois do passo 3." }
 
-Titulo "2/5  ffmpeg (monta os vídeos)"
-if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { Instalar "Gyan.FFmpeg" "ffmpeg" }
-if (Get-Command ffmpeg -ErrorAction SilentlyContinue) { Ok "ffmpeg instalado" } else { Aviso "ffmpeg vai funcionar depois de reiniciar o PC." }
-
-Titulo "3/5  Bibliotecas do Python"
-& $py -m pip install --upgrade pip --quiet
-& $py -m pip install -r requirements.txt
-if ($LASTEXITCODE -eq 0) { Ok "bibliotecas instaladas" } else { Aviso "deu algum erro nas bibliotecas" }
-
-Titulo "4/5  Inteligência artificial"
+Titulo "3/5  Inteligência artificial"
 Write-Host "  Qual IA você quer usar?"
 Write-Host "   [1] Claude  (precisa de assinatura do Claude)"
 Write-Host "   [2] Codex   (usa a conta do ChatGPT)"
@@ -66,19 +98,12 @@ Write-Host "   [5] Nenhuma agora"
 Write-Host "   [6] Gemini  (conta Google, cota grátis generosa)"
 $op = Read-Host "  Digite o número"
 if ($op -in @("1", "4")) { Instalar "Anthropic.ClaudeCode" "Claude Code"; Ok "Claude Code" }
-if ($op -in @("2", "4")) {
+if ($op -in @("2", "6", "4")) {
     if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { Instalar "OpenJS.NodeJS.LTS" "Node.js" }
     $npm = (Get-Command npm -ErrorAction SilentlyContinue).Source
     if (-not $npm) { $npm = "C:\Program Files\nodejs\npm.cmd" }
-    & $npm install -g '@openai/codex'
-    Ok "Codex"
-}
-if ($op -in @("6", "4")) {
-    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { Instalar "OpenJS.NodeJS.LTS" "Node.js" }
-    $npm = (Get-Command npm -ErrorAction SilentlyContinue).Source
-    if (-not $npm) { $npm = "C:\Program Files\nodejs\npm.cmd" }
-    & $npm install -g '@google/gemini-cli'
-    Ok "Gemini"
+    if ($op -in @("2", "4")) { & $npm install -g '@openai/codex'; Ok "Codex" }
+    if ($op -in @("6", "4")) { & $npm install -g '@google/gemini-cli'; Ok "Gemini" }
 }
 if ($op -in @("3", "4")) {
     Instalar "Ollama.Ollama" "Ollama (IA local)"
@@ -87,10 +112,23 @@ if ($op -in @("3", "4")) {
     if (Test-Path $ollama) {
         Start-Process $ollama "serve" -WindowStyle Hidden -ErrorAction SilentlyContinue
         Start-Sleep 6
-        Write-Host "  baixando o modelo de IA local (uns 2 GB)..."
-        & $ollama pull qwen2.5:3b
-        Ok "IA local pronta"
+        $modelo = & $prog -c "import contas;print(contas.modelo_recomendado())" 2>$null
+        if (-not $modelo) { $modelo = "qwen2.5:3b" }
+        Write-Host "  baixando o modelo de IA local recomendado pra este PC: $modelo ..."
+        & $ollama pull $modelo
+        & $prog -c "import cortes;c=cortes.carregar_config();c['modelo_local']='$modelo';cortes.salvar_config(c)" 2>$null
+        Ok "IA local pronta ($modelo — dá pra trocar em Contas & IA)"
     } else { Aviso "Ollama instalado, mas precisa reiniciar o PC antes de baixar o modelo." }
+}
+
+Titulo "4/5  Conferindo tudo"
+if (-not $okDoutor) {
+    $py2 = Achar-Python312
+    if (-not $py2) { $py2 = $py }
+    & $py2 doutor.py --consertar --ia
+    $okDoutor = ($LASTEXITCODE -eq 0)
+} else {
+    & $prog doutor.py | Out-Host
 }
 
 Titulo "5/5  Atalhos e Programas instalados"
@@ -120,6 +158,12 @@ foreach ($k in $props.Keys) { Set-ItemProperty -Path $chave -Name $k -Value $pro
 Ok "Aparece em Configurações > Aplicativos (versão $versao)"
 
 Write-Host ""
+if (-not $okDoutor) {
+    Aviso "Quase tudo pronto, mas ainda falta algo (veja os itens com X acima)."
+    Write-Host "  O registro completo está em instalacao.log. Siga as dicas acima e rode o INSTALAR.bat de novo,"
+    Write-Host "  ou abra o programa: na aba 'Contas & IA' o botão 'Examinar o PC' mostra o que falta."
+    Read-Host "  Aperte Enter para fechar"; exit
+}
 Write-Host "  TUDO PRONTO!" -ForegroundColor Green
 Write-Host "  Abra o 'Gerador de Cortes' na área de trabalho."
 Write-Host "  Na aba 'Contas & IA', clique em 'Conectar conta' pra fazer login (só na primeira vez)."

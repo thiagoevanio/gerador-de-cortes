@@ -2,6 +2,12 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 set PYTHONUTF8=1
+call "%~dp0_python.bat"
+if not defined PY (
+  echo Faltam o Python ou as bibliotecas. Rode o INSTALAR.bat primeiro.
+  pause
+  goto :eof
+)
 echo ==========================================
 echo        GERADOR DE CORTES 9:16
 echo ==========================================
@@ -18,6 +24,6 @@ if not "%PERGUNTA%"=="" set EXTRA=%EXTRA% --pergunta "%PERGUNTA%"
 if not "%FOTO%"=="" set EXTRA=%EXTRA% --foto "%FOTO%"
 if /i "%LEG%"=="N" set EXTRA=%EXTRA% --sem-legenda
 
-python cortes.py "%LINK%" --inicio %INICIO% --fim %FIM% %EXTRA%
+"%PY%" cortes.py "%LINK%" --inicio %INICIO% --fim %FIM% %EXTRA%
 echo.
 pause
