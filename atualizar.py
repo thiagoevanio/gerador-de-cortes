@@ -24,8 +24,10 @@ PASTA = Path(__file__).resolve().parent
 ARQ_VERSAO = PASTA / "VERSAO.txt"
 # nunca são substituídos
 PROTEGIDOS = {"config.json", "canais.json", "estado.json", "agenda_postagens.json", "aprendizado.json",
-              "tendencias.json", "resultados_extra.json", "client_secret.json", "monitor.log"}
-PASTAS_PROTEGIDAS = {"cortes_prontos", "gravacoes", "__pycache__", ".git", "analises", "feedback_editorial", "_validacao", "_jobs"}
+              "tendencias.json", "resultados_extra.json", "client_secret.json", "monitor.log",
+              "python_do_programa.txt", "instalacao.log"}
+PASTAS_PROTEGIDAS = {"cortes_prontos", "gravacoes", "__pycache__", ".git", "analises", "feedback_editorial", "_validacao", "_jobs",
+                     ".venv", "ferramentas"}
 
 
 def versao_atual():

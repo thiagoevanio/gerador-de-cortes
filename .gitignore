@@ -42,3 +42,10 @@ diagnostico/
 # suas músicas (só o LEIA-ME vai pro repositório)
 musicas/*
 !musicas/LEIA-ME.txt
+
+# ambiente e ferramentas instalados pelo doutor (cada PC tem os seus)
+.venv/
+ferramentas/
+python_do_programa.txt
+instalacao.log
+.teste_escrita
