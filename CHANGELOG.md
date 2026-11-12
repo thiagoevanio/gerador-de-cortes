@@ -2,6 +2,24 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.14 — Janelinha da live, faixas novas, IA local por tamanho e Tendências por canal
+
+- **📺 Janelinha da live:** quando um canal vigiado entra ao vivo, a live abre numa janela pequena no
+  canto da tela (Edge/Chrome em modo aplicativo) enquanto o robô grava e corta. Mostra o tempo de
+  gravação, os cortes feitos, o calor do chat, os últimos momentos detectados e o botão ✂ CORTAR AGORA.
+  Funciona com Twitch, Kick e YouTube; várias lives viram abas. Botão novo na aba Automático e opção
+  para desligar a abertura automática.
+- **Faixas:** dois formatos novos, **Balão de fala** e **Neon**, e o botão **👁 Ver formatos** na aba
+  Visual, que mostra uma amostra de cada faixa com as cores do perfil (clique para escolher).
+- **IA local por tamanho:** escolha o modelo do Ollama de 1,9 GB a 9 GB (Leve, Média, Forte, Máxima).
+  O programa mede a RAM do PC, recomenda o modelo que cabe e avisa antes de escolher um pesado demais.
+  Um modelo que já está no PC não é baixado de novo.
+- **Tendências só nos canais:** o modo "Só nos canais" aceita `@nome`, link ou só o nome do canal, não
+  busca mais os assuntos do Brasil nem vídeos soltos, e um canal que falha não derruba os outros.
+  Digitar um `@` ou link troca para esse modo sozinho.
+- **Correção — "baixando modelo" em todo corte:** o Whisper consultava a internet toda vez que era
+  carregado (a barra "Fetching files"). Agora abre direto do PC e só baixa quando o modelo não existe.
+
 ## 3.13 — Repositório, atualização segura, aviso de música, capa escolhível e código organizado
 
 - **Projeto no git e no GitHub**, com histórico de cada mudança. O atualizador, quando a pasta é um

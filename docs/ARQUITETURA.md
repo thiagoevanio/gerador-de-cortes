@@ -1,6 +1,6 @@
 # Arquitetura
 
-Visão técnica do Gerador de Cortes 9:16 (versão 3.13): fluxo, módulos, decisões de projeto e como testar.
+Visão técnica do Gerador de Cortes 9:16 (versão 3.14): fluxo, módulos, decisões de projeto e como testar.
 
 ## Fluxo de um corte
 
@@ -89,7 +89,7 @@ python -m unittest discover -p "test_*.py"
 ```
 
 Os testes usam ffmpeg de verdade com vídeos sintéticos, não acessam a internet e não chamam IA (as
-respostas são simuladas). Cada versão tem o seu arquivo (`test_v39.py` … `test_v313.py`) além dos
+respostas são simuladas). Cada versão tem o seu arquivo (`test_v39.py` … `test_v314.py`) além dos
 testes de base. A extensão do Chrome tem um teste próprio em Node (`test_extensao.cjs`).
 
 ## Convenções

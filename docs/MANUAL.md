@@ -20,6 +20,7 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
 
 ### 🔥 Tendências (vídeos bombando agora)
 - Coloque seus **nichos** (podcast, react, futebol, BBB...) e clique em **BUSCAR EM ALTA**.
+- **Só nos canais:** escolha esse modo e digite os canais separados por vírgula (`@flowpodcast`, o link do canal ou só o nome). Aparecem **só os vídeos desses canais** no período escolhido, sem assuntos do Brasil nem vídeos aleatórios. Se você digitar um `@` ou um link, o modo troca sozinho.
 - O programa junta: **assuntos em alta no Brasil** (Google), **busca no YouTube ordenada por views** da semana/do dia e o **"Em alta" oficial do YouTube** (se estiver conectado).
 - Cada vídeo ganha uma nota: **views por hora** desde que saiu, engajamento, se cita um **assunto em alta**, se já tem o gráfico de "mais repetidos" e se você já cortou.
 - **✂ Cortar melhores momentos:** um clique e ele acha os trechos e gera os cortes.
@@ -62,6 +63,7 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
   - **Sensibilidade:** Baixa (só lances muito fortes), Média ou Alta (corta mais). Pra um canal só: escreva `gaules:alta` na lista.
   - **Pedir minha aprovação:** em vez de cortar sozinho, o momento aparece na extensão com ✅/❌ (some em 10 min se ninguém aprovar).
   - **🩺 Modo diagnóstico:** anota cada pico (e os quase-picos) na pasta `diagnostico`. O botão **ver** mostra um resumo e diz se vale subir ou baixar a sensibilidade. Esse arquivo serve pra calibrar.
+- **📺 Janelinha da live:** quando um canal da lista entra ao vivo, a live abre numa janela pequena no canto da tela (Edge ou Chrome, sem barra nem abas) enquanto o robô grava e corta. Embaixo do vídeo aparecem há quanto tempo está gravando, quantos cortes saíram, o calor do chat e os últimos momentos detectados, além do **✂ CORTAR AGORA** (Twitch e Kick). Com mais de uma live, cada uma vira uma aba. Dá pra abrir pelo botão **📺 Janelinha da live** ou desligar a abertura automática na caixinha.
 - **🖥 Painel das 4 lives:** até 4 lives da Twitch lado a lado, cada uma com **✂ CORTAR AGORA**.
 - **🧩 Extensão do Chrome** (`chrome://extensions` → Modo do desenvolvedor → Carregar sem compactação → pasta `extensao_chrome`; se já tinha, clique no ↻ dela). Com o monitor ligado:
   - **Twitch e Kick:** aparece um painel no canto da live.
@@ -82,7 +84,7 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
 - **Teste A/B:** gera também uma versão B com outra pergunta. Poste as duas (ex: uma no YouTube e outra no TikTok) e veja em Resultados qual estilo ganhou. A vencedora ensina a IA.
 - **Versão em espanhol:** a IA traduz a pergunta, a legenda e o título (1 chamada curta) e gera o corte na pasta `espanhol`, pra um 2º canal voltado pra América Latina.
 - **Checar se é inédito:** antes de montar, procura no YouTube se outros canais já postaram aquele lance esta semana.
-- Posição, tamanho e cor da legenda, cor e **formato da faixa** (Rasgada, Pincelada, Fita adesiva, Adesivo ou Reta clássica) e selo do canal, com prévia ao vivo.
+- Posição, tamanho e cor da legenda, cor e **formato da faixa** (Rasgada, Pincelada, Fita adesiva, Adesivo, Balão de fala, Neon ou Reta clássica) e selo do canal, com prévia ao vivo. O botão **👁 Ver formatos** mostra uma amostra de cada faixa com as suas cores; é só clicar na que você quer.
 - **Efeitos:**
   - **Seguir o rosto:** a câmera acompanha quem fala, em vez de cortar sempre o meio.
   - **Tirar silêncios:** corta as pausas longas.
@@ -113,7 +115,7 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
   - **Claude:** assinatura do Claude.
   - **Codex:** conta do ChatGPT.
   - **Gemini:** grátis. Clique em **🔑 Colar chave da API** e cole a chave do Google AI Studio (fica salva só no seu PC, no `config.json` — não mande esse arquivo pra ninguém). Ou use o Gemini CLI com login da conta Google.
-  - **Local:** grátis, roda no PC, mais lenta e mais simples.
+  - **Local:** grátis, roda no PC, mais lenta e mais simples. Em **Modelo da IA local** escolha o tamanho: *Leve* (1,9 GB, qualquer PC), *Média* (4,7 GB, 16 GB de RAM), *Forte* (8,1 GB) ou *Máxima* (9 GB, PC forte ou placa de vídeo). O programa mostra a memória do seu PC e qual é o recomendado. Clique em **Instalar / baixar modelo**: baixa uma vez só; um modelo que já está no PC não baixa de novo.
   - **Nenhuma.**
 - **Reserva:** se a IA escolhida falhar ou bater o limite, o sistema usa outra.
 - **Qualidade da IA:** *Econômica* (Haiku em tudo), *Equilibrada* (Sonnet nos cortes e na escolha de momentos, Haiku no resto) ou *Máxima* (Opus nos cortes). O botão **📊 Uso da IA** mostra chamadas, falhas, tempo e tokens dos últimos 7 dias.
