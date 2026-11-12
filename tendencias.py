@@ -235,6 +235,14 @@ def _relevante(video, termos):
     return any(set(_normalizar(t).split()).issubset(texto) for t in termos if _normalizar(t))
 
 
+def _canal_existe(url):
+    try:
+        info = _ydl(url + "/videos", flat=True, n=1)
+        return bool(info.get("channel_id") or info.get("id"))
+    except Exception:
+        return False
+
+
 def buscar_canal(termo, n=15):
     """Resolve uma origem por identificador, endereço ou nome exato, sem adivinhar homônimos."""
     termo = termo.strip()
@@ -244,6 +252,11 @@ def buscar_canal(termo, n=15):
         url = "https://www.youtube.com/" + termo
     elif re.fullmatch(r"https://(?:www\.)?youtube\.com/(?:@[\w.\-]+|channel/UC[\w-]{22})/?", termo):
         url = termo.rstrip('/')
+    elif re.fullmatch(r"(?:https?://)?(?:www\.|m\.)?youtube\.com/(?:@[\w.\-]+|channel/UC[\w-]{22}|c/[\w.\-]+|user/[\w.\-]+)/?.*", termo):
+        m = re.search(r"youtube\.com/(@[\w.\-]+|channel/UC[\w-]{22}|c/[\w.\-]+|user/[\w.\-]+)", termo)
+        url = "https://www.youtube.com/" + m.group(1)
+    elif re.fullmatch(r"[\w.\-]{3,30}", termo) and _canal_existe("https://www.youtube.com/@" + termo):
+        url = "https://www.youtube.com/@" + termo          # nome digitado = @ do canal (o jeito mais comum)
     else:
         origens = {}
         for v in buscar_youtube(termo, n=30):
@@ -274,10 +287,11 @@ def radar(nichos=None, periodo="semana", detalhar=15, incluir_assuntos=True, log
     maximo = max(minimo, min(21600, float(filtros.get("duracao_max", 21600))))
     descoberta = descoberta or modo == 'descoberta'
     nichos = [n.strip() for n in (nichos or NICHOS_PADRAO) if n.strip()]
-    assuntos = buscar_assuntos(log) if incluir_assuntos else []
+    # no modo canal só entram os canais digitados: nada de assuntos do Brasil nem buscas soltas
+    assuntos = buscar_assuntos(log) if incluir_assuntos and modo != 'canal' else []
     termos = list(dict.fromkeys(nichos + ([a["termo"] for a in assuntos[:5]] if descoberta else [])))
     log(f"Procurando vídeos em alta: {', '.join(termos[:12])}{'...' if len(termos) > 12 else ''}")
-    candidatos = {}
+    candidatos, falhas = {}, []
     for v in em_alta_api(log) if descoberta else []:
         candidatos[v["id"]] = v
     for termo in termos:
@@ -287,8 +301,10 @@ def radar(nichos=None, periodo="semana", detalhar=15, incluir_assuntos=True, log
                     candidatos.setdefault(v["id"], v)
         except Exception as e:
             if modo == 'canal':
-                raise
+                falhas.append(f"{termo}: {str(e)[:120]}")
             log(f"   (busca '{termo}' falhou: {str(e)[:80]})")
+    if modo == 'canal' and falhas and not candidatos:
+        raise ValueError("Não achei o canal. " + " | ".join(falhas[:3]))
     # só vídeos que dá pra cortar: entre 6 min e 6 h (tira Shorts e lives de 12h)
     lista = [v for v in candidatos.values() if (modo == 'canal' and not v.get('duracao')) or minimo <= (v.get("duracao") or 0) <= maximo
              or (not v.get("duracao") and v.get("views"))]
