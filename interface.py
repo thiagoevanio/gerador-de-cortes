@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 import traceback
 from infraestrutura import salvar_json
 from pathlib import Path
@@ -1049,11 +1050,16 @@ class App(tk.Tk):
         self.v_periodo = tk.StringVar(value={"hoje": "Hoje", "mes": "Mês"}.get(canais.get("tendencias_periodo"), "Semana"))
         ttk.Combobox(topo, textvariable=self.v_periodo, state="readonly", width=8,
                      values=["Hoje", "Semana", "Mês"]).pack(side="left", padx=4)
-        self.v_busca_modo = tk.StringVar(value={"canal": "Canal", "descoberta": "Descoberta"}.get(canais.get("tendencias_modo"), "Assunto"))
-        ttk.Combobox(topo, textvariable=self.v_busca_modo, state="readonly", width=12,
-                     values=["Assunto", "Canal", "Descoberta"]).pack(side="left", padx=4)
+        self.v_busca_modo = tk.StringVar(value={"canal": "Só nos canais", "descoberta": "Descoberta"}.get(canais.get("tendencias_modo"), "Assunto"))
+        cb_modo = ttk.Combobox(topo, textvariable=self.v_busca_modo, state="readonly", width=13,
+                               values=["Assunto", "Só nos canais", "Descoberta"])
+        cb_modo.pack(side="left", padx=4)
+        cb_modo.bind("<<ComboboxSelected>>", lambda e: self._dica_modo_tend())
         self.b_radar = self._botao(topo, "🔎 BUSCAR EM ALTA", self._buscar_radar, cor=VERMELHO, cor_txt="white")
         self.b_radar.pack(side="left", padx=(6, 0))
+        self.lbl_modo_tend = tk.Label(self.aba_tend, text="", bg=FUNDO, fg=CINZA, font=("Segoe UI", 8), anchor="w")
+        self.lbl_modo_tend.pack(fill="x", padx=12)
+        self._dica_modo_tend()
 
         filtros = tk.Frame(self.aba_tend, bg=CARTAO, padx=12, pady=4)
         filtros.pack(fill="x")
@@ -1098,6 +1104,23 @@ class App(tk.Tk):
         self.lbl_tend.pack(fill="x", side="bottom", pady=(4, 0))
         self._thumbs_tend = {}
 
+    DICAS_MODO_TEND = {
+        "Assunto": "Assunto: procura no YouTube inteiro pelos temas digitados (separe por vírgula).",
+        "Só nos canais": "Só nos canais: digite os canais separados por vírgula (@nome, link ou nome exato) — "
+                         "só aparecem vídeos deles, nada aleatório.",
+        "Descoberta": "Descoberta: o que está em alta no Brasil + os temas digitados.",
+    }
+
+    def _dica_modo_tend(self):
+        self.lbl_modo_tend.configure(text=self.DICAS_MODO_TEND.get(self.v_busca_modo.get(), ""))
+        self.b_radar.configure(text="🔎 BUSCAR NOS CANAIS" if self.v_busca_modo.get() == "Só nos canais"
+                               else "🔎 BUSCAR EM ALTA")
+
+    @staticmethod
+    def parece_canal(termos):
+        """Os termos digitados são canais (@nome ou link do canal)?"""
+        return bool(termos) and all(t.startswith("@") or "youtube.com/" in t.lower() for t in termos)
+
     def _salvar_opcoes_tend(self):
         dados = self._ler_canais()
         try:
@@ -1113,7 +1136,7 @@ class App(tk.Tk):
                     idioma={"Português":"pt", "Espanhol":"es", "Inglês":"en"}.get(self.v_idioma_tend.get()))
         except (ValueError, tk.TclError):
             pass
-        dados["tendencias_modo"] = {"Canal": "canal", "Descoberta": "descoberta"}.get(self.v_busca_modo.get(), "assunto")
+        dados["tendencias_modo"] = {"Só nos canais": "canal", "Descoberta": "descoberta"}.get(self.v_busca_modo.get(), "assunto")
         dados["tendencias_periodo"] = {"Hoje": "hoje", "Mês": "mes"}.get(self.v_periodo.get(), "semana")
         salvar_json(PASTA / "canais.json", dados)
         self.cfg["usar_assuntos"] = self.v_usar_assuntos.get()
@@ -1143,8 +1166,12 @@ class App(tk.Tk):
         import tendencias
         self._salvar_opcoes_tend()
         nichos = [n.strip() for n in self.e_nichos.get().split(",") if n.strip()]
+        if self.v_busca_modo.get() != "Só nos canais" and self.parece_canal(nichos):
+            self.v_busca_modo.set("Só nos canais")          # digitou @canal ou link: busca só nele
+            self._dica_modo_tend()
+            self._salvar_opcoes_tend()
         periodo = {"Hoje": "hoje", "Mês": "mes"}.get(self.v_periodo.get(), "semana")
-        modo = {"Canal": "canal", "Descoberta": "descoberta"}.get(self.v_busca_modo.get(), "assunto")
+        modo = {"Só nos canais": "canal", "Descoberta": "descoberta"}.get(self.v_busca_modo.get(), "assunto")
         try:
             filtros = dict(duracao_min=self.v_dur_min_tend.get()*60, duracao_max=self.v_dur_max_tend.get()*60,
                            idioma={"Português":"pt", "Espanhol":"es", "Inglês":"en"}.get(self.v_idioma_tend.get()))
@@ -1163,7 +1190,8 @@ class App(tk.Tk):
                 return None
 
         def fim(videos):
-            self.b_radar.configure(state="normal", text="🔎 BUSCAR EM ALTA")
+            self.b_radar.configure(state="normal")
+            self._dica_modo_tend()
             _, assuntos, _ = tendencias.ultimo_radar()
             self._desenhar_assuntos(assuntos)
             if videos is not None:
@@ -1176,7 +1204,8 @@ class App(tk.Tk):
         for w in self.tend_interno.winfo_children():
             w.destroy()
         if not videos:
-            tk.Label(self.tend_interno, text="Nada encontrado. Tente outros nichos.", bg=FUNDO, fg=CINZA,
+            tk.Label(self.tend_interno, text=("Nenhum vídeo desses canais no período. Tente 'Mês' ou aumente a duração máxima."
+                      if self.v_busca_modo.get() == "Só nos canais" else "Nada encontrado. Tente outros nichos."), bg=FUNDO, fg=CINZA,
                      font=("Segoe UI", 11)).pack(pady=40)
             return
         self._labels_thumb = {}
@@ -1597,6 +1626,9 @@ class App(tk.Tk):
         lt2.pack(fill="x")
         self.v_aprovar = tk.BooleanVar(value=canais.get("tempo_real_aprovar", False))
         ttk.Checkbutton(lt2, text="Pedir minha aprovação na extensão", variable=self.v_aprovar).pack(side="left")
+        self.v_mini_auto = tk.BooleanVar(value=canais.get("janelinha_auto", True))
+        ttk.Checkbutton(lt2, text="📺 Abrir a live numa janelinha quando entrar ao vivo",
+                        variable=self.v_mini_auto).pack(side="left", padx=(10, 0))
         self.v_diag = tk.BooleanVar(value=canais.get("modo_diagnostico", False))
         ttk.Checkbutton(lt2, text="🩺 Modo diagnóstico", variable=self.v_diag).pack(side="left", padx=(10, 4))
         b = self._botao(lt2, "ver", self._ver_diagnostico)
@@ -1609,6 +1641,7 @@ class App(tk.Tk):
                                      cor=VERMELHO, cor_txt="white", grande=True)
         self.b_monitor.pack(side="right")
         # mesma linha do Salvar (cabe em tela de notebook 1366x768)
+        self._botao(bts, "📺 Janelinha da live", self._abrir_mini).pack(side="left", padx=(6, 0))
         self._botao(bts, "🖥 Painel 4 lives", self._abrir_painel).pack(side="left", padx=(6, 0))
         self._botao(bts, "🧩 Extensão", self._ajuda_extensao).pack(side="left", padx=(6, 0))
 
@@ -1652,6 +1685,7 @@ class App(tk.Tk):
         dados["tempo_real"] = self.v_tempo_real.get()
         dados["sensibilidade"] = {"Baixa": "baixa", "Alta": "alta"}.get(self.v_sens.get(), "media")
         dados["tempo_real_aprovar"] = self.v_aprovar.get()
+        dados["janelinha_auto"] = self.v_mini_auto.get()
         dados["modo_diagnostico"] = self.v_diag.get()
         dados["pasta_vigiada"] = self.e_vigiada.get().strip().strip('"')
         try:
@@ -1713,6 +1747,8 @@ class App(tk.Tk):
         def ler():
             for linha in self.monitor_proc.stdout:
                 self._log(self.log_auto, linha.rstrip())
+                if "está AO VIVO" in linha:          # a opção é lida na thread da janela
+                    self.fila.put(("call", lambda _x: self.v_mini_auto.get() and self._abrir_mini(sozinho=True), None))
             return None
         self._em_segundo_plano(ler, self._monitor_parou)
 
@@ -1732,6 +1768,41 @@ class App(tk.Tk):
                 textos.append(f"📄 {f.name}: não consegui ler ({e})")
         messagebox.showinfo("Diagnóstico das lives", "\n\n".join(textos)[:2500])
         self._abrir(pasta)
+
+    @staticmethod
+    def navegador_app():
+        """Edge ou Chrome (abrem a página como janela de aplicativo, sem abas nem barra)."""
+        import shutil
+        nomes = [shutil.which("msedge"), shutil.which("chrome")]
+        for base in (os.environ.get("ProgramFiles(x86)", ""), os.environ.get("ProgramFiles", ""),
+                     os.environ.get("LOCALAPPDATA", "")):
+            if base:
+                nomes += [os.path.join(base, "Microsoft", "Edge", "Application", "msedge.exe"),
+                          os.path.join(base, "Google", "Chrome", "Application", "chrome.exe")]
+        return next((n for n in nomes if n and os.path.exists(n)), None)
+
+    def _abrir_mini(self, sozinho=False):
+        """Abre a live (a que o robô está gravando) numa janela pequena no canto direito da tela."""
+        if not (self.monitor_proc and self.monitor_proc.poll() is None):
+            if not sozinho:
+                messagebox.showinfo("Robô desligado", "Ligue o monitor primeiro (botão LIGAR MONITOR). "
+                                    "A janelinha mostra a live que ele estiver gravando.")
+            return
+        if sozinho and time.time() - getattr(self, "_mini_aberta_em", 0) < 120:
+            return                                   # já abriu agora há pouco (outro canal entrou junto)
+        self._mini_aberta_em = time.time()
+        url = "http://localhost:8765/mini"
+        larg, alt = 480, 360
+        x = max(0, self.winfo_screenwidth() - larg - 10)
+        y = max(0, self.winfo_screenheight() - alt - 60)
+        exe = self.navegador_app()
+        if exe:
+            subprocess.Popen([exe, f"--app={url}", f"--window-size={larg},{alt}", f"--window-position={x},{y}"],
+                             creationflags=cortes.SEM_JANELA)
+        else:
+            import webbrowser
+            webbrowser.open(url)
+        self._log(self.log_auto, "📺 Janelinha da live aberta (pode arrastar pra onde quiser).")
 
     def _abrir_painel(self):
         if not (self.monitor_proc and self.monitor_proc.poll() is None):
@@ -1864,11 +1935,15 @@ class App(tk.Tk):
         l4.pack(fill="x", pady=(6, 0))
         rot(l4, "Formato da faixa:")
         self.formatos = {"Rasgada (papel)": "Rasgada", "Pincelada": "Pincelada",
-                         "Fita adesiva": "Fita", "Adesivo": "Adesivo", "Reta (clássica)": "Reta"}
+                         "Fita adesiva": "Fita", "Adesivo": "Adesivo", "Balão de fala": "Balão",
+                         "Neon": "Neon", "Reta (clássica)": "Reta"}
         self.v_formato = tk.StringVar()
         cb3 = ttk.Combobox(l4, textvariable=self.v_formato, state="readonly", width=15, values=list(self.formatos))
         cb3.pack(side="left", padx=(6, 14))
         cb3.bind("<<ComboboxSelected>>", lambda e: self._mudou_visual())
+        b_fx = self._botao(l4, "👁 Ver formatos", self._ver_formatos_faixa)
+        b_fx.configure(padx=6, pady=1)
+        b_fx.pack(side="left", padx=(0, 10))
         self.v_selo = tk.BooleanVar()
         ttk.Checkbutton(l4, text="Selo com o nome do canal", variable=self.v_selo,
                         command=self._mudou_visual).pack(side="left")
@@ -2092,6 +2167,61 @@ class App(tk.Tk):
             self.after_cancel(self._previa_job)
         self._previa_job = self.after(250, self._atualizar_previa)
 
+    @staticmethod
+    def amostras_faixa(pasta, pergunta="ELE FALOU ISSO AO VIVO?", canal="SEU CANAL"):
+        """Uma imagem de cada formato de faixa (com as cores do perfil atual). Devolve {formato: arquivo}."""
+        import faixas
+        saida = {}
+        destaque = [pergunta.split()[-1]] if pergunta.split() else []
+        for formato, func in list(faixas.FORMATOS_FAIXA.items()) + [("Reta", "faixa_reta_png")]:
+            try:
+                img = getattr(faixas, func)(pergunta, destaque, canal).convert("RGB")
+            except Exception:
+                continue
+            img.thumbnail((400, 150))
+            arq = Path(pasta) / f"faixa_{formato}.png"
+            img.save(arq)
+            saida[formato] = arq
+        return saida
+
+    def _ver_formatos_faixa(self):
+        import tempfile
+        if not hasattr(self, "_pasta_amostras"):
+            self._pasta_amostras = tempfile.mkdtemp(prefix="faixas_")
+        janela = tk.Toplevel(self)
+        janela.title("Formatos da faixa")
+        janela.configure(bg=FUNDO)
+        janela.transient(self)
+        tk.Label(janela, text="Clique no formato que você quer (as cores seguem o 'Estilo da faixa').",
+                 bg=FUNDO, fg=TEXTO, font=("Segoe UI", 10, "bold")).pack(padx=12, pady=(10, 6), anchor="w")
+        grade = tk.Frame(janela, bg=FUNDO)
+        grade.pack(padx=12, pady=(0, 12))
+        tk.Label(grade, text="Gerando as amostras...", bg=FUNDO, fg=CINZA).grid(row=0, column=0)
+        nomes = {v: k for k, v in self.formatos.items()}
+        atual = self.formatos.get(self.v_formato.get(), "Rasgada")
+
+        def mostrar(amostras):
+            if not janela.winfo_exists():
+                return
+            for w in grade.winfo_children():
+                w.destroy()
+            janela._imgs = []
+            for i, (formato, arq) in enumerate((amostras or {}).items()):
+                foto = tk.PhotoImage(file=str(arq))
+                janela._imgs.append(foto)
+                cel = tk.Frame(grade, bg=VERMELHO if formato == atual else CARTAO, padx=3, pady=3)
+                cel.grid(row=i // 2, column=i % 2, padx=6, pady=6)
+
+                def escolher(_e=None, f=formato):
+                    self.v_formato.set(nomes.get(f, self.v_formato.get()))
+                    self._mudou_visual()
+                    janela.destroy()
+                tk.Button(cel, image=foto, command=escolher, bg=CARTAO, relief="flat", cursor="hand2",
+                          activebackground=CARTAO, bd=0).pack()
+                tk.Label(cel, text=nomes.get(formato, formato) + ("  ✔ atual" if formato == atual else ""),
+                         bg=cel["bg"], fg=TEXTO, font=("Segoe UI", 9, "bold")).pack(fill="x")
+        self._em_segundo_plano(lambda: self.amostras_faixa(self._pasta_amostras), mostrar)
+
     def _descrever_template(self):
         import templates_edicao
         nome = self.v_template.get() or "Clássico"
@@ -2167,9 +2297,28 @@ class App(tk.Tk):
         linha("Gemini (grátis: chave API ou conta Google)", "gemini",
               [("🔑 Colar chave da API", self._chave_gemini), ("Testar", contas.testar_gemini),
                ("ou: Instalar CLI", contas.instalar_gemini), ("Conectar conta", contas.conectar_gemini)])
-        linha("IA local (grátis, roda no PC)", "local", [("Instalar", contas.instalar_local),
+        linha("IA local (grátis, roda no PC)", "local", [("Instalar / baixar modelo", contas.instalar_local),
                                                           ("Ligar", contas.conectar_local),
                                                           ("Testar", contas.testar_local)])
+        fm = tk.Frame(esq, bg=CARTAO)
+        fm.pack(fill="x", pady=(2, 0))
+        tk.Label(fm, text="Modelo da IA local:", bg=CARTAO, fg=TEXTO, font=("Segoe UI", 9)).pack(side="left")
+        self.modelos_locais = {contas.rotulo_modelo(m): m["id"] for m in contas.MODELOS_LOCAIS}
+        atual = self.cfg.get("modelo_local") or cortes.MODELO_LOCAL
+        if atual not in self.modelos_locais.values():           # modelo escolhido à mão no config.json
+            self.modelos_locais[f"Personalizado — {atual}"] = atual
+        self.v_modelo_local = tk.StringVar(value=next(k for k, v in self.modelos_locais.items() if v == atual))
+        cbm = ttk.Combobox(fm, textvariable=self.v_modelo_local, state="readonly", width=52,
+                           values=list(self.modelos_locais))
+        cbm.pack(side="left", padx=(6, 0))
+        cbm.bind("<<ComboboxSelected>>", lambda e: self._mudou_modelo_local())
+        ram = contas.memoria_pc_gb()
+        rec = contas.modelo_recomendado(ram)
+        self.lbl_modelo_local = tk.Label(
+            esq, bg=CARTAO, fg=CINZA, font=("Segoe UI", 8), anchor="w", justify="left", wraplength=520,
+            text=(f"Seu PC tem {ram} GB de RAM — recomendado: {rec}. " if ram else "")
+            + "Escolha e clique em 'Instalar / baixar modelo': baixa uma vez só e fica salvo no PC.")
+        self.lbl_modelo_local.pack(fill="x")
 
         self._rotulo(esq, "Qual IA usar nos cortes?", top=8)
         f = tk.Frame(esq, bg=CARTAO)
@@ -2210,6 +2359,22 @@ class App(tk.Tk):
         self._salvar_cfg()
         cortes.aplicar_config(self.cfg)
         self._atualizar_lbl_ia()
+
+    def _mudou_modelo_local(self):
+        modelo = self.modelos_locais.get(self.v_modelo_local.get(), cortes.MODELO_LOCAL)
+        info = next((m for m in contas.MODELOS_LOCAIS if m["id"] == modelo), None)
+        ram = contas.memoria_pc_gb()
+        if info and ram and info["ram"] > ram and not messagebox.askyesno(
+                "Modelo pesado", f"Esse modelo pede uns {info['ram']} GB de RAM e o seu PC tem {ram} GB.\n"
+                "Ele pode ficar muito lento ou travar o PC enquanto pensa. Usar mesmo assim?"):
+            self.v_modelo_local.set(next(k for k, v in self.modelos_locais.items() if v == cortes.MODELO_LOCAL))
+            return
+        self.cfg["modelo_local"] = modelo
+        self._salvar_cfg()
+        cortes.aplicar_config(self.cfg)
+        dica = f" ({info['dica']})" if info else ""
+        self._log(self.log_contas, f"IA local: {modelo}{dica}. Se ainda não baixou, clique em "
+                                   "'Instalar / baixar modelo' (os que você já baixou não baixam de novo).")
 
     def _atualizar_lbl_ia(self):
         nome = {"claude": "Claude", "codex": "Codex", "gemini": "Gemini", "local": "Local",
