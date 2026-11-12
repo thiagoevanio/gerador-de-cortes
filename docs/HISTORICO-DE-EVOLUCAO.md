@@ -18,7 +18,7 @@ O código dos mecanismos está concluído. A calibração precisa das avaliaçõ
 
 ## Segundo lote — implementação e evidências
 
-O uso está descrito em `GUIA-NOVAS-FUNCOES.md`.
+O uso está descrito em [GUIA-FUNCOES-AVANCADAS.md](GUIA-FUNCOES-AVANCADAS.md).
 
 | Área | Implementação atual | Validação |
 |---|---|---|

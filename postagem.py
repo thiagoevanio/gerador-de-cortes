@@ -3,7 +3,7 @@ Postagem dos cortes.
 
 YouTube Shorts — automático pela API oficial (grátis):
   - Você cria uma vez um "cliente OAuth" no Google Cloud e salva como client_secret.json
-    nesta pasta (passo a passo no LEIA-ME e no botão de ajuda da interface).
+    nesta pasta (passo a passo em docs/TUTORIAL-YOUTUBE.md e no botão de ajuda da interface).
   - Na primeira postagem abre o navegador pra você autorizar a sua conta do YouTube.
   - Os vídeos sobem como PRIVADOS com horário marcado (publishAt): o próprio YouTube
     publica na hora certa, mesmo com o seu PC desligado.
