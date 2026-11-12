@@ -376,8 +376,56 @@ def faixa_adesivo(pergunta, destaque, canal):
     return faixa.rotate(-4, resample=Image.BICUBIC)
 
 
+def faixa_balao(pergunta, destaque, canal):
+    """Balão de fala de HQ: oval na cor do estilo, borda grossa e o 'rabinho' apontando pro vídeo."""
+    from PIL import Image, ImageDraw
+    fnt, linhas, alt_linha, larg = _texto_layout(pergunta, 800, 108)
+    fw, fh = int(min(1010, max(740, larg + 210))), int(alt_linha * len(linhas) + 110)
+    W, H = cortes.LARGURA, fh + 230
+    x0, y0 = (W - fw) // 2, 70
+    x1, y1 = x0 + fw, y0 + fh
+    borda = 12
+    rabo = [(x0 + fw * 0.28, y1 - 30), (x0 + fw * 0.42, y1 - 24), (x0 + fw * 0.2, y1 + 120)]
+    externo = Image.new("L", (W, H), 0)
+    de = ImageDraw.Draw(externo)
+    de.ellipse([x0 - borda, y0 - borda, x1 + borda, y1 + borda], fill=255)
+    de.polygon([(rabo[0][0] - borda, rabo[0][1]), (rabo[1][0] + borda, rabo[1][1]),
+                (rabo[2][0] - borda * 0.6, rabo[2][1] + borda * 1.6)], fill=255)
+    interno = Image.new("L", (W, H), 0)
+    di = ImageDraw.Draw(interno)
+    di.ellipse([x0, y0, x1, y1], fill=255)
+    di.polygon(rabo, fill=255)
+    faixa = _sombra_de(externo, (6, 12), 0.55, 12)
+    faixa.paste(Image.new("RGBA", (W, H), cortes.FAIXA_LINHA_COR + (255,)), (0, 0), externo)
+    faixa.paste(_papel_colorido(W, H, y0, fh, 16).convert("RGBA"), (0, 0), interno)
+    _texto_desenhar(faixa, fnt, linhas, alt_linha, destaque, y0 + (fh - alt_linha * len(linhas)) // 2 - 6)
+    _selo(faixa, canal, x0 + fw // 2 - 120, y0 - borda - 40)
+    return faixa.rotate(-2, resample=Image.BICUBIC)
+
+
+def faixa_neon(pergunta, destaque, canal):
+    """Placa de neon: fundo escuro translúcido e contorno brilhante na cor do estilo."""
+    from PIL import Image, ImageDraw, ImageFilter
+    fnt, linhas, alt_linha, larg = _texto_layout(pergunta, 860, 112)
+    fw, fh = int(min(1020, max(760, larg + 150))), int(alt_linha * len(linhas) + 80)
+    W, H = cortes.LARGURA, fh + 160
+    x0, y0 = (W - fw) // 2, 75
+    x1, y1 = x0 + fw, y0 + fh
+    cor = tuple(min(255, int(c * 1.35) + 30) for c in cortes.FAIXA_COR_CIMA)   # versão acesa da cor
+    faixa = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(faixa).rounded_rectangle([x0, y0, x1, y1], radius=28, fill=(8, 8, 14, 215))
+    for raio, forca in ((26, 150), (12, 200), (4, 255)):          # brilho em camadas, do largo ao fino
+        luz = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(luz).rounded_rectangle([x0, y0, x1, y1], radius=28, outline=cor + (forca,), width=7)
+        faixa.alpha_composite(luz.filter(ImageFilter.GaussianBlur(raio)) if raio > 4 else luz)
+    _texto_desenhar(faixa, fnt, linhas, alt_linha, destaque, y0 + (fh - alt_linha * len(linhas)) // 2 - 4)
+    _selo(faixa, canal, x0 + 30, y0 - 50)
+    return faixa
+
+
 FORMATOS_FAIXA = {"Rasgada": "faixa_rasgada", "Pincelada": "faixa_pincelada",
-                  "Fita": "faixa_fita", "Adesivo": "faixa_adesivo"}
+                  "Fita": "faixa_fita", "Adesivo": "faixa_adesivo",
+                  "Balão": "faixa_balao", "Neon": "faixa_neon"}
 
 
 def encaixar_inteira(foto: Path, largura, altura, base_y):
