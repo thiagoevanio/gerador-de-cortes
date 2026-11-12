@@ -1824,7 +1824,11 @@ class App(tk.Tk):
                             "• ✂ CORTAR (Alt+C) com 30s / 60s / 90s, ou ⏱ marcar (Alt+M) o começo\n"
                             "• depois de cortar, escreva o que aconteceu (opcional) — a IA usa\n"
                             "• o Chrome avisa quando o corte fica pronto\n\n"
-                            "No YouTube: ⏱ Início, ⏱ Fim e ✂ GERAR (Alt+I, Alt+F, Alt+G).")
+                            "No YouTube: ⏱ Início, ⏱ Fim e ✂ GERAR (Alt+I, Alt+F, Alt+G), e a aba\n"
+                            "Momentos mostra os trechos mais revistos e os minutos citados nos comentários.\n\n"
+                            "🤖 Aba Bot: pergunte 'vale cortar agora?', peça título ou os melhores\n"
+                            "momentos. Usa a IA de Contas & IA (sem IA, responde com os números do chat).\n"
+                            "Clique no ícone da extensão pra ver as lives, os cortes prontos e as opções.")
         self._abrir(PASTA / "extensao_chrome")
 
     def _monitor_parou(self, _):

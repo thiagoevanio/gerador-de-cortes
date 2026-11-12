@@ -689,6 +689,10 @@ FILA_ATIVA = None
 PORTA = 8765
 COMANDOS: "queue.Queue[dict]" = queue.Queue()
 ESTADO_PAINEL = {"gravando": {}, "lives": {}, "fila": 0, "prontos": []}
+try:
+    VERSAO_PROGRAMA = (Path(__file__).with_name("VERSAO.txt").read_text(encoding="utf-8").strip() or "?")
+except OSError:
+    VERSAO_PROGRAMA = "?"
 
 
 def chave_live(canal, plat):
@@ -923,6 +927,16 @@ class Painel(BaseHTTPRequestHandler):
             acao, ident = q.get('acao'), q.get('id', '')
             ok = FILA_ATIVA.retomar(ident) if acao == 'retomar' else FILA_ATIVA.cancelar(ident) if acao == 'cancelar' else False
             return self._enviar(200, json.dumps(dict(ok=ok, msg='Atualizado.' if ok else 'Tarefa não disponível para essa ação.')))
+        if url.path == "/bot":                        # bot da extensão (pergunta pra IA, só sugere ações)
+            try:
+                tam = int(self.headers.get("Content-Length") or 0)
+                if not 0 < tam <= 300_000:
+                    return self._enviar(413, '{"ok":false,"msg":"Pedido grande demais."}')
+                pedido = json.loads(self.rfile.read(tam).decode("utf-8"))
+            except (ValueError, json.JSONDecodeError):
+                return self._enviar(400, '{"ok":false,"msg":"Pedido inválido."}')
+            import bot
+            return self._enviar(200, json.dumps(bot.responder(pedido), ensure_ascii=False))
         if url.path == "/chat":                       # mensagens do chat lidas pela extensão
             try:
                 tam = int(self.headers.get("Content-Length") or 0)
@@ -954,7 +968,9 @@ class Painel(BaseHTTPRequestHandler):
         if url.path == '/sessao':
             return self._enviar(200, json.dumps(dict(token=TOKEN_SESSAO)))
         if url.path == "/status":
-            return self._enviar(200, json.dumps(dict(ESTADO_PAINEL, agora=time.time()), ensure_ascii=False))
+            import bot
+            return self._enviar(200, json.dumps(dict(ESTADO_PAINEL, agora=time.time(), ia=bot.status_ia(),
+                                                     versao=VERSAO_PROGRAMA), ensure_ascii=False))
         if not getattr(self, '_post_autorizado', False):
             return self._enviar(405, '{"ok":false,"msg":"Use POST com a sessão do programa."}')
         if url.path == "/gerar":

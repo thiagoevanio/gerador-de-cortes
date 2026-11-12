@@ -94,16 +94,25 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
   - **🩺 Modo diagnóstico:** anota cada pico (e os quase-picos) na pasta `diagnostico`. O botão **ver** mostra um resumo e diz se vale subir ou baixar a sensibilidade. Esse arquivo serve pra calibrar.
 - **📺 Janelinha da live:** quando um canal da lista entra ao vivo, a live abre numa janela pequena no canto da tela (Edge ou Chrome, sem barra nem abas) enquanto o robô grava e corta. Embaixo do vídeo aparecem há quanto tempo está gravando, quantos cortes saíram, o calor do chat e os últimos momentos detectados, além do **✂ CORTAR AGORA** (Twitch e Kick). Com mais de uma live, cada uma vira uma aba. Dá pra abrir pelo botão **📺 Janelinha da live** ou desligar a abertura automática na caixinha.
 - **🖥 Painel das 4 lives:** até 4 lives da Twitch lado a lado, cada uma com **✂ CORTAR AGORA**.
-- **🧩 Extensão do Chrome** (`chrome://extensions` → Modo do desenvolvedor → Carregar sem compactação → pasta `extensao_chrome`; se já tinha, clique no ↻ dela). Com o monitor ligado:
-  - **Twitch e Kick:** aparece um painel no canto da live.
+- **🧩 Extensão do Chrome 3.0** (`chrome://extensions` → Modo do desenvolvedor → Carregar sem compactação → pasta `extensao_chrome`; se já tinha, clique no ↻ dela e recarregue as abas abertas). Com o monitor ligado:
+  - **Painel novo** em Twitch, Kick e YouTube, com abas **Cortar**, **Momentos** e **Bot**. Dá pra arrastar pelo topo (ele lembra onde você deixou) e minimizar numa **bolinha** que pisca quando acontece algo.
+  - **Ícone da extensão** (barra do Chrome): mostra se o programa está ligado, a IA do bot, as lives gravando (com o calor), a fila e os últimos cortes prontos. Lá também ficam as **configurações**: ligar ou desligar o painel em cada site, o bot comentando sozinho e o bot usando a IA.
+  - **Twitch e Kick:**
     - **Grava ao abrir:** abriu a live, o programa já começa a gravar, então o lance não se perde. Fechou a aba, ele para depois de 10 min (se o canal não estiver na sua lista).
-    - **🔥 Alerta de chat:** a extensão lê o chat da página e pisca quando ele explode (KKKK, ???). Um clique corta.
+    - **Chat agora:** gráfico das mensagens dos últimos 5 minutos, mensagens por minuto, quantas vezes acima do normal, % de risada e as palavras do momento.
+    - **🔥 Alerta de chat:** pisca quando o chat explode (KKKK, ???). Um clique corta.
     - **✂ CORTAR (Alt+C)** com **30s / 60s / 90s**, ou **⏱ marcar (Alt+M)** o começo do lance e cortar até agora.
     - **Nota pra IA:** depois de cortar, escreva o que aconteceu (opcional) e aperte Enter. A IA usa isso pra criar a pergunta da faixa.
-    - Mostra se está gravando e quantos cortes estão na fila, e **o Chrome avisa quando o corte fica pronto**.
-    - **🌡 Termômetro:** barra com o calor da live em tempo real (fica vermelha quando vai cortar) e a lista dos **momentos que o programa detectou sozinho**, com ❌ pra descartar (ou ✅ pra aprovar, se você ligou a aprovação).
+    - **🌡 Termômetro** com o calor da live em tempo real e, na aba **Momentos**, o que o programa detectou sozinho (✅ aprovar / ❌ descartar) e os cortes que você fez nesta live. **O Chrome avisa quando o corte fica pronto.**
     - **Kick:** o chat lido pela extensão também passa a ser usado pra achar os picos automaticamente.
-  - **YouTube:** **⏱ Início**, **⏱ Fim** e **✂ GERAR** em qualquer vídeo (Alt+I, Alt+F, Alt+G).
+  - **YouTube:**
+    - **⏱ Início**, **⏱ Fim**, **↶ últimos 30s/60s** e **✂ GERAR** (Alt+I, Alt+F, Alt+G), com a duração na hora e **▶ assistir o trecho**.
+    - **Momentos:** os **picos do gráfico "mais assistidos de novo"** do YouTube e os **minutos citados nos comentários** (4:05, 4:08 e 4:10 viram um lance só). ▶ vai até o ponto e ✂ marca 1 minuto em volta.
+  - **🤖 Bot:** um assistente dentro do painel. Botões prontos (**Vale cortar agora?**, **O que rolou?**, **Sugere um título**, **Melhores momentos**) ou pergunte o que quiser.
+    - **Com IA** (a que estiver em Contas & IA: Claude, Codex, Gemini ou Local): lê o chat recente, os números do chat, os momentos detectados, o título e os comentários, e responde com **nota de 0 a 10**, o **gancho da faixa** (com botão de copiar), títulos e **botões de ação** (✂ cortar 60s, ⏱ marcar, ▶ ir para 4:05, ✂ marcar trecho).
+    - **Sem IA:** responde com os números do chat e os momentos achados (modo básico).
+    - **Sozinho:** quando o chat explode, ele comenta o que está rolando e, com IA, já diz se vale cortar (no máximo 1 análise a cada 3 min).
+    - **Segurança:** o chat e os comentários vão pra IA só como material (se alguém no chat tentar "mandar" no bot, ele ignora) e as sugestões viram botões: **nada acontece sem o seu clique**. No YouTube, o bot só marca o trecho; gerar continua sendo com você.
 
 - **🌙 Modo madrugada:** os cortes automáticos esperam o horário escolhido (ex: 01h às 07h), quando o PC está livre. Os manuais (extensão, Corte) rodam na hora. Opcional: **desligar o PC** quando terminar.
 - **🎬 Compilação automática** todo domingo à noite.

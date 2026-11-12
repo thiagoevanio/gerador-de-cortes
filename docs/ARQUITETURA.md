@@ -45,6 +45,7 @@ duas vezes.
 | Infraestrutura | `infraestrutura.py`, `recursos.py`, `cofre.py`, `atualizar.py`, `qualidade.py` | Gravação atômica e travas, limites de recursos, segredos (DPAPI), atualização, inspeção de mídia. |
 | Instalação | `doutor.py`, `instalar.ps1`, `_python.bat`, `setup.iss`, `gerar_setup.ps1` | Exame do PC e consertos (Python 3.12 em `.venv`, bibliotecas, Visual C++, ffmpeg, PATH), leitura de erros com regras e IA restrita a consertos pré-definidos. |
 | Interface | `interface.py`, `previa.py` | Interface Tkinter e prévia visual. |
+| Extensão | `extensao_chrome/` (`ui.js`, `live.js`, `youtube.js`, `popup.*`, `background.js`), `bot.py`, rota `/bot` do `monitor.py` | Painel nas lives e no YouTube, popup e o bot: a extensão manda o contexto da página, `bot.py` monta o pedido (material separado de instrução), chama `ia_json` e devolve só ações de uma lista fechada, que viram botões. |
 
 ## Decisões de projeto
 

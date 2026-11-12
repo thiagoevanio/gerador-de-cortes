@@ -52,3 +52,6 @@ instalacao.log
 
 # instalador gerado pelo GERAR-SETUP.bat
 dist/
+
+# configuração local do Claude Code (servidor de teste da extensão)
+.claude/

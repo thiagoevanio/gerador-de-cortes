@@ -2,6 +2,23 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.17 — Extensão do Chrome 3.0 com bot
+
+- **Painel novo** em Twitch, Kick e YouTube (`ui.js`): visual isolado do site (shadow DOM), abas
+  **Cortar / Momentos / Bot**, arrastável (lembra a posição por site) e minimizável numa bolinha que pisca.
+- **Chat agora** (Twitch/Kick): gráfico dos últimos 5 min, msg/min, quantas vezes acima do normal,
+  % de risada e as palavras do momento. Aba Momentos com o que o programa detectou e os cortes da live.
+- **YouTube:** "últimos 30/60 s", duração na hora, assistir o trecho e a aba **Momentos** com os picos do
+  gráfico "mais assistidos de novo" e os minutos citados nos comentários (agrupados por lance).
+- **🤖 Bot** (`bot.py` + rota `/bot` do monitor): usa a IA de Contas & IA pra analisar o chat/comentários,
+  dar nota, sugerir gancho e títulos e propor ações (cortar, marcar, gravar, ir para o minuto, marcar
+  trecho) que viram **botões** — nada acontece sem clique. Chat e comentários vão como material, nunca
+  como instrução; ações fora da lista e números fora dos limites são descartados. Sem IA, responde com os
+  números do chat. Comenta sozinho quando o chat explode (com IA, no máximo 1 análise a cada 3 min).
+- **Popup do ícone:** programa ligado/desligado, IA do bot, lives gravando com o calor, fila, cortes prontos
+  e configurações (painel por site, bot automático, bot com IA).
+- `/status` do monitor passa a informar a IA do bot e a versão do programa.
+
 ## 3.16 — Instalador .exe com atalho personalizado
 
 - **`Instalar-Gerador-de-Cortes-<versão>.exe`:** um arquivo só (uns 3 MB), feito com o Inno Setup.

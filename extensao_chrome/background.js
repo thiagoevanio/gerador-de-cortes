@@ -5,7 +5,7 @@ const OFF = { ok: false, offline: true, msg: "Programa desligado. Abra o Gerador
 let tokenSessao = null;
 let notificando = Promise.resolve();
 async function api(acao, params = {}, corpo = null, reconectar = true) {
-  const permitidas = new Set(["status", "gravar", "cortar", "gerar", "nota", "momento", "chat", "tarefa"]);
+  const permitidas = new Set(["status", "gravar", "cortar", "gerar", "nota", "momento", "chat", "tarefa", "bot"]);
   if (!permitidas.has(acao)) return { ok: false, msg: "Ação inválida." };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 110000);

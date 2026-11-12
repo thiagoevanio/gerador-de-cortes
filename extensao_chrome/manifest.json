@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Cortes 9:16 - Botão Cortar",
-  "version": "2.3",
-  "description": "Grava a live que você abrir, avisa quando o chat explode e corta com um clique (Twitch, Kick e YouTube).",
+  "name": "Cortes 9:16",
+  "version": "3.0",
+  "description": "Grava a live que você abrir, lê o chat, acha os melhores momentos e corta com um clique. Bot com IA embutido (Twitch, Kick e YouTube).",
   "permissions": [
     "notifications",
     "storage"
@@ -13,6 +13,14 @@
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Cortes 9:16",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "48": "icone48.png",
+      "128": "icone128.png"
+    }
   },
   "icons": {
     "128": "icone128.png",
@@ -25,10 +33,8 @@
         "https://kick.com/*"
       ],
       "js": [
+        "ui.js",
         "live.js"
-      ],
-      "css": [
-        "content.css"
       ]
     },
     {
@@ -36,10 +42,8 @@
         "https://www.youtube.com/*"
       ],
       "js": [
+        "ui.js",
         "youtube.js"
-      ],
-      "css": [
-        "content.css"
       ]
     }
   ]

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cortes 9:16</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="logo"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></svg></div>
+    <div class="nome">Cortes 9:16<small id="versao">extensão</small></div>
+    <span id="conexao" class="pilula"><i></i><span>verificando…</span></span>
+  </header>
+
+  <section id="offline" class="cartao aviso" hidden>
+    <b>O programa está desligado</b>
+    <p>Abra o <b>Gerador de Cortes</b> e clique em <b>LIGAR MONITOR</b> (aba Automático). A extensão conversa com ele pelo seu PC.</p>
+  </section>
+
+  <section id="online" hidden>
+    <div class="grade">
+      <div class="num"><b id="n-lives">0</b><span>gravando</span></div>
+      <div class="num"><b id="n-fila">0</b><span>na fila</span></div>
+      <div class="num"><b id="n-prontos">0</b><span>prontos</span></div>
+    </div>
+    <div class="cartao ia"><span id="ia" class="pilula"><i></i><span>IA</span></span>
+      <span class="dica" id="ia-dica"></span></div>
+
+    <h2>Lives</h2>
+    <div id="lives"></div>
+    <h2>Últimos cortes prontos</h2>
+    <div id="prontos"></div>
+    <button id="painel" class="btn largo">Abrir o painel completo</button>
+  </section>
+
+  <h2>Configurações</h2>
+  <div class="cartao opcoes">
+    <label><input type="checkbox" data-cfg="twitch"><span>Painel na <b>Twitch</b></span></label>
+    <label><input type="checkbox" data-cfg="kick"><span>Painel na <b>Kick</b></span></label>
+    <label><input type="checkbox" data-cfg="youtube"><span>Painel no <b>YouTube</b></span></label>
+    <label><input type="checkbox" data-cfg="botAuto"><span>Bot comenta quando o chat explode</span></label>
+    <label><input type="checkbox" data-cfg="botIa"><span>Bot usa a IA do programa</span></label>
+  </div>
+  <details>
+    <summary>Atalhos de teclado</summary>
+    <table>
+      <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>cortar (Twitch/Kick)</td></tr>
+      <tr><td><kbd>Alt</kbd>+<kbd>M</kbd></td><td>marcar o início do lance</td></tr>
+      <tr><td><kbd>Alt</kbd>+<kbd>I</kbd> / <kbd>F</kbd></td><td>início / fim (YouTube)</td></tr>
+      <tr><td><kbd>Alt</kbd>+<kbd>G</kbd></td><td>gerar o corte (YouTube)</td></tr>
+    </table>
+  </details>
+  <footer>O painel pode ser arrastado pelo topo e minimizado numa bolinha.</footer>
+  <script src="popup.js"></script>
+</body>
+</html>
