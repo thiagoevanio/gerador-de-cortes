@@ -82,6 +82,8 @@ def listar():
             "legenda": postagem.legenda_post(f, "tiktok"),
             "quando": f.get("youtube_quando", "")[:16].replace("T", " "),
             "tarefa": _estado["tarefas"].get(_id(v), ""),
+            "resumo": str(f.get("resumo") or "")[:200],
+            "musica": bool((f.get("musica_de_fundo") or {}).get("provavel")),
         })
     return saida
 
@@ -89,7 +91,15 @@ def listar():
 def miniatura(v: Path):
     pasta = BASE / ".miniaturas"
     pasta.mkdir(parents=True, exist_ok=True)
-    m = pasta / f"cel_{v.stem[:60]}_{int(v.stat().st_mtime)}.jpg"
+    capa = v.with_suffix(".capa.jpg")
+    marca = int(max(v.stat().st_mtime, capa.stat().st_mtime if capa.exists() else 0))
+    m = pasta / f"cel_{v.stem[:60]}_{marca}.jpg"
+    if not m.exists() and capa.exists():           # a capa escolhida vira a miniatura
+        try:
+            from PIL import Image
+            Image.open(capa).convert("RGB").resize((270, 480)).save(m, quality=80)
+        except Exception:
+            pass
     if not m.exists():
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "1.5", "-i", str(v), "-frames:v", "1",
                         "-vf", "scale=270:480", "-q:v", "5", str(m)], creationflags=SEM_JANELA)
@@ -111,7 +121,7 @@ def _postar_youtube(v: Path):
 def _descartar(v: Path):
     destino = BASE / "_descartados"
     destino.mkdir(parents=True, exist_ok=True)
-    for ext in (".mp4", ".json", ".txt", ".srt"):
+    for ext in (".mp4", ".json", ".txt", ".srt", ".capa.jpg", ".qualidade.json", ".transcricao.json"):
         arq = v.with_suffix(ext)
         if arq.exists():
             alvo = destino / arq.name
@@ -134,7 +144,7 @@ main{padding:0 12px 40px;display:grid;gap:12px}
 .topo img{width:96px;height:170px;object-fit:cover;border-radius:10px;background:#000;flex:none}
 .info{min-width:0}.tit{font-weight:700;margin:0 0 6px;line-height:1.25}
 .sel{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}.sel span{background:#2b2e38;color:var(--g);border-radius:20px;padding:2px 8px;font-size:12px}
-.sel .ok{background:#163d2a;color:#7ff0b0}
+.sel .ok{background:#163d2a;color:#7ff0b0}.sel .alerta{background:#4a3a10;color:#ffd866}
 video{width:100%;max-height:75vh;background:#000;display:block}
 .bts{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px}
 .bts button,.bts a{border:0;border-radius:12px;padding:12px 8px;background:#2b2e38;color:var(--t);text-align:center;text-decoration:none}
@@ -165,16 +175,19 @@ L.innerHTML=vis.map(i=>`<div class="card" id="c_${i.id}"><div class="topo"><img 
 ${i.nota!=null?`<span>⭐ ${i.nota}</span>`:''}<span>${esc(i.perfil)}</span>
 ${i.parte?`<span>Parte ${i.parte}</span>`:''}${i.layout&&i.layout!='normal'?`<span>${i.layout}</span>`:''}
 ${i.variante?`<span>versão ${i.variante}</span>`:''}${i.status=='aprovado'?'<span class="ok">✓ aprovado</span>':''}
-${i.youtube?`<span class="ok">YouTube ${esc(i.quando)}</span>`:''}${i.tiktok?'<span class="ok">TikTok</span>':''}</div>
-<div style="color:#9a9cab;font-size:13px">${esc(i.pergunta)}</div></div></div>
+${i.youtube?`<span class="ok">YouTube ${esc(i.quando)}</span>`:''}${i.tiktok?'<span class="ok">TikTok</span>':''}
+${i.musica?'<span class="alerta">🎵 música de fundo?</span>':''}</div>
+<div style="color:#9a9cab;font-size:13px">${esc(i.pergunta)}</div>
+${i.resumo?`<div style="color:#c9cad3;font-size:12px;margin-top:6px">💬 ${esc(i.resumo)}</div>`:''}</div></div>
 <div id="v_${i.id}"></div><div class="bts">
 <button onclick="tocar('${i.id}')">▶ Assistir</button><a href="/baixar/${i.id}" download>⬇ Baixar</a>
 <button onclick="copiar('${i.id}')">📋 Copiar legenda</button>
 <button class="ok" onclick="acao('${i.id}','aprovar')">✓ Aprovar</button>
-<button class="yt" onclick="if(confirm('Agendar no próximo horário livre do YouTube?'))acao('${i.id}','youtube')">▶ YouTube</button>
+<button class="yt" onclick="if(confirm((i_musica('${i.id}')?'⚠ Parece ter música de fundo: música com direitos pode mutar ou bloquear no YouTube.\n\n':'')+'Agendar no próximo horário livre do YouTube?'))acao('${i.id}','youtube')">▶ YouTube</button>
 <button onclick="acao('${i.id}','tiktok')">✔ Postei no TikTok</button>
 <button style="grid-column:span 2;background:#3a1d20" onclick="if(confirm('Descartar este corte?'))acao('${i.id}','descartar')">🗑 Descartar</button>
 </div><div class="msg">${esc(i.tarefa)}</div></div>`).join('')}
+function i_musica(id){const i=itens.find(x=>x.id==id);return i&&i.musica}
 function tocar(id){const d=document.getElementById('v_'+id);
 d.innerHTML=d.innerHTML?'':`<video src="/video/${id}" controls autoplay playsinline></video>`}
 function copiar(id){const i=itens.find(x=>x.id==id);const t=document.createElement('textarea');t.value=i.legenda;

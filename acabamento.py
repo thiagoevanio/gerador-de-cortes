@@ -163,6 +163,35 @@ def fim_para_loop(palavras, duracao, folga=0.28, minimo=0.35):
 
 
 # ------------------------------------------------------------------ capa
+def tempos_capa(duracao, n=3, fim_livre=3.4):
+    """Momentos bons pra capa: o começo (onde passa a prévia do gancho) e dois pontos do meio,
+    nunca no cartaz final nem colados um no outro."""
+    limite = max(0.5, duracao - fim_livre - 0.8)
+    candidatos = [1.0, duracao * 0.35, duracao * 0.65, duracao * 0.5]
+    tempos = []
+    for t in candidatos:
+        t = round(min(max(0.5, t), limite), 2)
+        if all(abs(t - x) >= 1.5 for x in tempos):
+            tempos.append(t)
+        if len(tempos) >= n:
+            break
+    return tempos
+
+
+def opcoes_capa(video, pasta, duracao, pergunta=None, fonte=None, clean=False, n=3):
+    """Gera n opções de capa em 'pasta'. No estilo clean a pergunta só aparece escrita nos primeiros
+    segundos do vídeo, então nos outros momentos ela é desenhada por cima. Devolve [(segundos, arquivo)]."""
+    pasta = Path(pasta)
+    pasta.mkdir(parents=True, exist_ok=True)
+    saida = []
+    for k, t in enumerate(tempos_capa(duracao, n)):
+        texto = pergunta if (clean and pergunta and t > 3.4) else None
+        arq = gerar_capa(video, pasta / f"capa_opcao_{k + 1}.jpg", t, pergunta=texto, fonte=fonte)
+        if arq:
+            saida.append((t, arq))
+    return saida
+
+
 def gerar_capa(video_final, destino, t=1.5, pergunta=None, fonte=None, largura=1080):
     """Salva um quadro do corte pronto como capa (.jpg). Com 'pergunta', escreve ela por cima
     (quando o quadro ainda não tem o texto na tela). Devolve o caminho ou None."""

@@ -607,11 +607,20 @@ class App(tk.Tk):
             pasta = PASTA / "cortes_prontos" / ".miniaturas"
             pasta.mkdir(parents=True, exist_ok=True)
             for v, _ in itens:
-                m = pasta / (v.stem[:60] + f"_{int(v.stat().st_mtime)}.jpg")
+                capa = v.with_suffix(".capa.jpg")
+                marca = int(max(v.stat().st_mtime, capa.stat().st_mtime if capa.exists() else 0))
+                m = pasta / (v.stem[:60] + f"_{marca}.jpg")
                 if not m.exists():
-                    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "1.5", "-i", str(v),
-                                    "-frames:v", "1", "-vf", "scale=90:160", str(m)],
-                                   creationflags=cortes.SEM_JANELA)
+                    if capa.exists():                 # a capa (escolhida ou automática) vira a miniatura
+                        try:
+                            from PIL import Image
+                            Image.open(capa).convert("RGB").resize((90, 160)).save(m, quality=85)
+                        except Exception:
+                            pass
+                    if not m.exists():
+                        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "1.5", "-i", str(v),
+                                        "-frames:v", "1", "-vf", "scale=90:160", str(m)],
+                                       creationflags=cortes.SEM_JANELA)
                 self._miniaturas[v] = m
             return itens
         self._em_segundo_plano(miniaturas, self._desenhar_galeria)
@@ -675,6 +684,13 @@ class App(tk.Tk):
                 detalhes += ("  ·  " if detalhes else "") + "  ·  ".join(selos)
             tk.Label(info, text=detalhes, bg=CARTAO, fg=CINZA, font=("Segoe UI", 8), anchor="w",
                      wraplength=300, justify="left").pack(fill="x")
+            for aviso in self._avisos_revisao(f):
+                tk.Label(info, text=aviso, bg=CARTAO, fg=AMARELO, font=("Segoe UI", 8, "bold"), anchor="w",
+                         wraplength=300, justify="left").pack(fill="x")
+            revisao = self._texto_revisao(f)
+            if revisao:
+                tk.Label(info, text=revisao, bg=CARTAO, fg=TEXTO, font=("Segoe UI", 8), anchor="w",
+                         wraplength=300, justify="left").pack(fill="x", pady=(2, 0))
             st = "NOVO"
             cor = AMARELO
             if f.get("status") == "postado":
@@ -689,12 +705,87 @@ class App(tk.Tk):
             for txt, fn in [("▶", lambda v=v: self._abrir(v)), ("YouTube", lambda v=v: self._postar_yt(v)),
                             ("TikTok", lambda v=v: self._postar_tt(v)), ("✏", lambda v=v, f=f: self._refazer(v, f)),
                             ("📈", lambda v=v: self._views_manual(v)),
+                            ("🖼", lambda v=v, f=f: self._escolher_capa(v, f)),
                             ("Legenda", lambda v=v: __import__("editorial").editar_legenda(self, v)),
                             ("🗑", lambda v=v: self._descartar(v))]:
                 b = self._botao(bts, txt, fn, cor=VERMELHO if txt in ("YouTube", "TikTok") else "#34343E",
                                 cor_txt="white")
                 b.configure(padx=7, pady=3)
                 b.pack(side="left", padx=(0, 4))
+
+    @staticmethod
+    def _avisos_revisao(f):
+        """Avisos que pedem atenção antes de postar."""
+        avisos = []
+        musica = f.get("musica_de_fundo") or {}
+        if musica.get("provavel"):
+            avisos.append(f"🎵 Parece ter música de fundo (confiança {musica.get('confianca', '?')}): "
+                          "música com direitos pode mutar ou bloquear no YouTube. Confira.")
+        if (f.get("ia") or {}).get("falhou"):
+            avisos.append("🤖 A IA não respondeu neste corte: pergunta e título feitos no PC. Revise.")
+        return avisos
+
+    @staticmethod
+    def _texto_revisao(f):
+        """O que a IA viu no trecho e por que deu a nota (revisão em segundos)."""
+        partes = []
+        if f.get("resumo"):
+            partes.append("💬 " + str(f["resumo"])[:170])
+        if f.get("motivo_nota"):
+            partes.append("📊 " + str(f["motivo_nota"])[:120])
+        return "\n".join(partes)
+
+    def _escolher_capa(self, v, f):
+        """Mostra 3 opções de capa (+ a atual) e salva a escolhida como <corte>.capa.jpg."""
+        import acabamento
+        import postagem
+        import shutil
+        import tempfile
+        pasta = Path(tempfile.mkdtemp(prefix="capas_"))
+        self.lbl_gal.configure(text="Gerando opções de capa...")
+
+        def gerar():
+            dur = cortes.duracao_video(v)
+            return acabamento.opcoes_capa(v, pasta, dur, pergunta=f.get("pergunta"), fonte=cortes.fonte,
+                                          clean=f.get("estilo") == "clean")
+
+        def mostrar(opcoes):
+            self.lbl_gal.configure(text="")
+            atual = v.with_suffix(".capa.jpg")
+            lista = ([("atual", atual)] if atual.exists() else []) + [(f"{t:.0f}s", a) for t, a in (opcoes or [])]
+            if not lista:
+                shutil.rmtree(pasta, ignore_errors=True)
+                return messagebox.showwarning("Capa", "Não consegui tirar quadros desse vídeo.")
+            from PIL import Image, ImageTk
+            jan = tk.Toplevel(self)
+            jan.title("Escolha a capa")
+            jan.configure(bg=FUNDO, padx=14, pady=12)
+            jan.transient(self)
+            tk.Label(jan, text="Clique na capa que você quer usar (TikTok/Reels e miniatura da galeria)",
+                     bg=FUNDO, fg=TEXTO, font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 8))
+            linha = tk.Frame(jan, bg=FUNDO)
+            linha.pack()
+            jan._fotos = []
+
+            def escolher(arq):
+                if Path(arq).resolve() != atual.resolve():
+                    shutil.copy2(arq, atual)
+                ficha = postagem.ler_ficha(v)
+                ficha["capa"] = atual.name
+                postagem.salvar_ficha(v, ficha)
+                jan.destroy()
+                self._carregar_galeria()
+
+            for rotulo, arq in lista:
+                col = tk.Frame(linha, bg=FUNDO)
+                col.pack(side="left", padx=6)
+                foto = ImageTk.PhotoImage(Image.open(arq).convert("RGB").resize((180, 320)))
+                jan._fotos.append(foto)
+                tk.Button(col, image=foto, relief="flat", bg=CARTAO, activebackground=AMARELO, cursor="hand2",
+                          command=lambda a=arq: escolher(a)).pack()
+                tk.Label(col, text=rotulo, bg=FUNDO, fg=CINZA, font=("Segoe UI", 9)).pack()
+            jan.bind("<Destroy>", lambda e: shutil.rmtree(pasta, ignore_errors=True) if e.widget is jan else None)
+        self._em_segundo_plano(gerar, mostrar)
 
     def _ajuda_youtube(self):
         if messagebox.askyesno("Configurar o YouTube (uma vez só)",
@@ -778,9 +869,10 @@ class App(tk.Tk):
         quando = postagem.proximo_horario(horarios, perfil=perfil)
         extra = "" if postagem.youtube_conectado(perfil) else \
             f"\n\n(o perfil '{perfil}' ainda não tem conta conectada — vai abrir o navegador)"
+        alerta = "".join("\n\n⚠ " + a for a in self._avisos_revisao(ficha))
         if not messagebox.askyesno("Agendar no YouTube", f"Agendar no canal do perfil '{perfil}' para "
                                    f"{quando:%d/%m às %H:%M}?\n(sobe agora como privado e o YouTube publica "
-                                   f"sozinho na hora){extra}"):
+                                   f"sozinho na hora){extra}{alerta}"):
             return
         self.lbl_gal.configure(text="Enviando pro YouTube...")
 
