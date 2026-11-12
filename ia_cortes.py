@@ -877,6 +877,7 @@ def pensar_com_ia(palavras, meta, pasta: Path, frames=None, pergunta_fixa=None, 
         prompt += "\n\n" + "\n\n".join(guia)
     cortes.log("IA pensando (legenda, pergunta, título e foto)...")
     imagens = [folha] if folha else None
+    ia_motor.limpar_resultado()                   # nunca ler o resultado de uma chamada anterior
     bruto = cortes.ia_json(prompt, cwd=pasta, imagens=imagens, tarefa="corte")
     origem = ia_motor.resultado()
     dados = _validar_dados(bruto, padrao, palavras, pergunta_fixa)
@@ -884,6 +885,7 @@ def pensar_com_ia(palavras, meta, pasta: Path, frames=None, pergunta_fixa=None, 
     motivo = _motivo_escalar(bruto, juizo, origem, pergunta_fixa)
     if motivo:
         cortes.log(f"Resposta fraca ({motivo}) — refazendo 1 vez com um modelo mais forte...")
+        ia_motor.limpar_resultado()
         bruto2 = cortes.ia_json(prompt, cwd=pasta, imagens=imagens, tarefa="corte", forte=True)
         if bruto2 is not None:
             origem2 = ia_motor.resultado()
@@ -958,6 +960,7 @@ def pensar_lote(pedidos, meta, pasta: Path):
     if guia:
         prompt += "\n\n" + "\n\n".join(guia)
     cortes.log(f"IA pensando nos {len(pedidos)} cortes de uma vez (1 chamada só)...")
+    ia_motor.limpar_resultado()                   # nunca ler o resultado de uma chamada anterior
     resp = cortes.ia_json(prompt, cwd=pasta, imagens=[imagem] if imagem else None, tarefa="lote")
     origem = ia_motor.resultado()
     lista = resp if isinstance(resp, list) else (resp.get("cortes") if isinstance(resp, dict) else None)
