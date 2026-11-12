@@ -4,7 +4,21 @@ Faz cortes verticais no estilo dos cortes brasileiros: foto no topo, faixa com p
 
 ## Instalar (PC novo)
 
-Dois cliques em **`INSTALAR.bat`**. Ele pede permissão de administrador e instala tudo sozinho: Python, ffmpeg, bibliotecas e a IA que você escolher. Também cria atalhos na área de trabalho e no menu Iniciar, e coloca o programa em **Configurações → Aplicativos**, com opção de desinstalar.
+Copie a pasta para o PC novo (pendrive, zip ou `git clone`) e dê dois cliques em **`INSTALAR.bat`**. Ele pede permissão de administrador e faz tudo sozinho:
+
+1. **Python 3.12:** acha ou instala (pelo winget ou direto do python.org, conferindo a assinatura). Ele fica separado dos outros Pythons do PC: se o PC já tiver o 3.13 ou o 3.14, nada muda neles. As bibliotecas do programa só funcionam no 3.12, e misturar versões era a causa do erro mais comum ao levar o programa pra outro PC.
+2. **Doutor de instalação** (`doutor.py`): examina o PC e conserta o que faltar.
+   - Cria o ambiente do programa (pasta `.venv`) e instala as bibliotecas nele.
+   - Instala o Microsoft Visual C++ (sem ele dá "DLL load failed").
+   - Baixa o ffmpeg completo (com legenda) pra pasta `ferramentas`, conferindo o hash oficial.
+   - Arruma o PATH do Windows: o programa já acha tudo na hora, sem reiniciar o PC.
+   - Se um passo der erro, ele lê o erro, reconhece os problemas comuns e tenta outro conserto. Ainda falhou e você tem uma IA instalada? Ele manda o erro pra ela, que escolhe o conserto **só entre os consertos seguros do doutor** (nunca roda comando inventado) e explica o que fazer à mão, se precisar.
+3. **IA:** você escolhe Claude, Codex, Gemini ou Local. A Local já baixa o modelo recomendado pra memória do PC.
+4. Cria atalhos na área de trabalho e no menu Iniciar, e coloca o programa em **Configurações → Aplicativos**, com opção de desinstalar.
+
+Copiou a pasta de um PC que já tinha o programa? Sem problema: o doutor percebe que o `.venv` veio de outro PC e refaz. O atalho também se vira sozinho: se faltar alguma coisa, ele abre o instalador em vez de dar erro.
+
+**Só examinar:** `EXAMINAR-PC.bat` (ou o botão **🩺 Examinar o PC** em Contas & IA) mostra o que o PC tem e o que falta, sem instalar nada. O registro completo de cada instalação fica em `instalacao.log`.
 
 Depois, abra o programa, vá em **🔑 Contas & IA** e clique em **Conectar conta** na IA que for usar. Esse login só precisa ser feito uma vez, por você.
 

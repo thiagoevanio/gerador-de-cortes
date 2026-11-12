@@ -1,6 +1,6 @@
 # Arquitetura
 
-Visão técnica do Gerador de Cortes 9:16 (versão 3.14): fluxo, módulos, decisões de projeto e como testar.
+Visão técnica do Gerador de Cortes 9:16 (versão 3.15): fluxo, módulos, decisões de projeto e como testar.
 
 ## Fluxo de um corte
 
@@ -43,6 +43,7 @@ duas vezes.
 | Entrega | `postagem.py`, `celular.py`, `projeto_edicao.py` | YouTube/TikTok, galeria no celular, receita para reeditar sem IA. |
 | Resultados | `resultados.py`, `historico_metricas.py`, `estatistica_editorial.py` | Métricas, aprendizado, A/B, horários. |
 | Infraestrutura | `infraestrutura.py`, `recursos.py`, `cofre.py`, `atualizar.py`, `qualidade.py` | Gravação atômica e travas, limites de recursos, segredos (DPAPI), atualização, inspeção de mídia. |
+| Instalação | `doutor.py`, `instalar.ps1`, `_python.bat` | Exame do PC e consertos (Python 3.12 em `.venv`, bibliotecas, Visual C++, ffmpeg, PATH), leitura de erros com regras e IA restrita a consertos pré-definidos. |
 | Interface | `interface.py`, `previa.py` | Interface Tkinter e prévia visual. |
 
 ## Decisões de projeto
@@ -89,7 +90,7 @@ python -m unittest discover -p "test_*.py"
 ```
 
 Os testes usam ffmpeg de verdade com vídeos sintéticos, não acessam a internet e não chamam IA (as
-respostas são simuladas). Cada versão tem o seu arquivo (`test_v39.py` … `test_v314.py`) além dos
+respostas são simuladas). Cada versão tem o seu arquivo (`test_v39.py` … `test_v315.py`) além dos
 testes de base. A extensão do Chrome tem um teste próprio em Node (`test_extensao.cjs`).
 
 ## Convenções

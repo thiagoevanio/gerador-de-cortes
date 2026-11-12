@@ -4,7 +4,7 @@
 com inteligência artificial, edição de nível profissional e aprendizado a partir dos resultados do seu
 canal.** Roda no seu PC (Windows), usando a sua própria assinatura de IA.
 
-![versão](https://img.shields.io/badge/versão-3.14-e3262e)
+![versão](https://img.shields.io/badge/versão-3.15-e3262e)
 ![python](https://img.shields.io/badge/python-3.12-3776ab)
 ![plataforma](https://img.shields.io/badge/plataforma-Windows%2010%2F11-0078d4)
 ![testes](https://img.shields.io/badge/testes-167%20passando-25c26e)
@@ -73,13 +73,17 @@ flowchart LR
 INSTALAR.bat
 ```
 
-Instala Python, ffmpeg, bibliotecas e a IA escolhida, e cria os atalhos. Depois abra o programa, vá em
-**🔑 Contas & IA** e conecte a sua conta de IA (uma vez só). Detalhes em [docs/MANUAL.md](docs/MANUAL.md).
+Em qualquer PC com Windows 10/11, mesmo sem nada instalado: garante o Python 3.12 (separado de outros
+Pythons do PC) e chama o **doutor de instalação** (`doutor.py`), que examina o PC e instala o que falta:
+ambiente `.venv`, bibliotecas, Visual C++, ffmpeg e PATH. Quando um passo falha, ele lê o erro e tenta
+outro conserto; se tiver uma IA, ela ajuda a escolher, mas só entre consertos seguros pré-definidos.
+Depois abra o programa, vá em **🔑 Contas & IA** e conecte a sua conta de IA (uma vez só). Detalhes em
+[docs/MANUAL.md](docs/MANUAL.md).
 
-Instalação manual, para quem já tem Python e ffmpeg:
+Só ver o que falta, sem instalar: `EXAMINAR-PC.bat`. Instalação manual, para quem prefere:
 
 ```bat
-pip install -r requirements.txt
+py -3.12 doutor.py --consertar
 interface.bat
 ```
 

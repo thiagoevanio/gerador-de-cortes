@@ -2,6 +2,29 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.15 — Instalação à prova de PC novo
+
+- **Doutor de instalação** (`doutor.py`, só biblioteca padrão, roda em qualquer Python 3.8+): examina
+  o PC (Windows 64 bits, disco, internet, Python, bibliotecas, Visual C++, ffmpeg com legenda, PATH,
+  winget) e conserta o que falta. Usado pelo `INSTALAR.bat`, pelo botão ⚡ INSTALAR TUDO e pelo novo
+  **🩺 Examinar o PC** (também em `EXAMINAR-PC.bat`).
+- **Python certo sempre:** o programa roda num ambiente próprio (`.venv`) com o Python 3.12, separado
+  dos outros Pythons do PC. Antes, um PC com 3.13/3.14 (ou o atalho falso da Microsoft Store) fazia as
+  bibliotecas falharem. Um `.venv` copiado de outro PC é detectado e refeito.
+- **Sem depender do winget:** Python (python.org, assinatura da Python Software Foundation conferida),
+  Visual C++ (Microsoft, assinatura conferida) e ffmpeg (gyan.dev, hash SHA-256 conferido) são baixados
+  direto quando o winget não existe ou falha. O ffmpeg vai pra pasta `ferramentas` e vale na hora.
+- **PATH:** o doutor grava as pastas no PATH do usuário e o programa as acrescenta ao abrir, então nada
+  depende de reiniciar o PC.
+- **Lê o erro e tenta de novo:** regras para os erros comuns (DLL faltando, versão sem pacote, download
+  corrompido, comando não reconhecido, `.venv` de outro PC) e passos manuais para o que não tem
+  conserto automático (certificado SSL, disco cheio, arquivo em uso, internet). Se ainda falhar e houver
+  uma IA, ela recebe o exame e o log e escolhe consertos **só da lista do doutor** — nunca roda comando
+  inventado.
+- **Atalhos espertos:** `interface.bat`, `monitor.bat` e `cortar.bat` acham o Python com as bibliotecas
+  (`_python.bat`) e, se faltar algo, abrem o instalador em vez de dar erro.
+- A IA local, quando escolhida no instalador, já baixa o modelo recomendado pra memória do PC.
+
 ## 3.14 — Janelinha da live, faixas novas, IA local por tamanho e Tendências por canal
 
 - **📺 Janelinha da live:** quando um canal vigiado entra ao vivo, a live abre numa janela pequena no
