@@ -4,6 +4,21 @@ Faz cortes verticais no estilo dos cortes brasileiros: foto no topo, faixa com p
 
 ## Instalar (PC novo)
 
+### Jeito mais fácil: o instalador `.exe`
+
+Mande pra pessoa o arquivo **`Instalar-Gerador-de-Cortes-<versão>.exe`** (um arquivo só, uns 3 MB). Ela dá dois cliques, clica **Avançar → Instalar** e pronto:
+
+- o programa vai para `%LOCALAPPDATA%\Programs\Gerador de Cortes` (sem escolher pasta);
+- aparece o atalho **Gerador de Cortes**, com o ícone do programa, na área de trabalho e no menu Iniciar (lá também fica o **Examinar o PC**);
+- em seguida abre a janela azul do instalador, que faz os mesmos passos de baixo (Python, bibliotecas, ffmpeg, PATH e a escolha da IA);
+- no fim, dá pra marcar **Abrir o Gerador de Cortes agora**.
+
+Pra desinstalar: **Configurações → Aplicativos → Gerador de Cortes 9:16**. Ele remove o programa e o que baixou (`.venv`, `ffmpeg`) e pergunta se apaga também seus cortes e configurações (o padrão é guardar). Instalar uma versão nova por cima mantém seus cortes, contas e configurações.
+
+**Gerar o `.exe`** (no seu PC): dê dois cliques em **`GERAR-SETUP.bat`**. Ele instala o Inno Setup (grátis) se precisar e cria o arquivo na pasta `dist`. Só entram os arquivos do programa que estão no git: suas contas, tokens, configurações, cortes e gravações **nunca** vão junto.
+
+### Copiando a pasta
+
 Copie a pasta para o PC novo (pendrive, zip ou `git clone`) e dê dois cliques em **`INSTALAR.bat`**. Ele pede permissão de administrador e faz tudo sozinho:
 
 1. **Python 3.12:** acha ou instala (pelo winget ou direto do python.org, conferindo a assinatura). Ele fica separado dos outros Pythons do PC: se o PC já tiver o 3.13 ou o 3.14, nada muda neles. As bibliotecas do programa só funcionam no 3.12, e misturar versões era a causa do erro mais comum ao levar o programa pra outro PC.

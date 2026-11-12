@@ -2,6 +2,20 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.16 — Instalador .exe com atalho personalizado
+
+- **`Instalar-Gerador-de-Cortes-<versão>.exe`:** um arquivo só (uns 3 MB), feito com o Inno Setup.
+  Dois cliques → Avançar → Instalar. Copia o programa para `%LOCALAPPDATA%\Programs\Gerador de Cortes`
+  (não precisa de admin pra copiar), cria o atalho **Gerador de Cortes** com o ícone na área de trabalho
+  e no menu Iniciar, roda o instalador (`instalar.ps1 -Setup`: Python, bibliotecas, ffmpeg, PATH, IA) e
+  oferece abrir o programa no fim.
+- **Desinstalar** por Configurações → Aplicativos: remove o programa, o `.venv` e o `ffmpeg` baixado, e
+  pergunta antes de apagar cortes e configurações (padrão: guardar). Atualizar por cima mantém tudo.
+- **`GERAR-SETUP.bat`** gera o `.exe` na pasta `dist`. Só empacota os arquivos do git: contas, tokens,
+  configurações, cortes, gravações e testes ficam de fora.
+- `instalar.ps1` espera a janela de administrador terminar e, numa instalação feita pelo `.exe`, não
+  duplica atalhos nem a entrada em Aplicativos.
+
 ## 3.15 — Instalação à prova de PC novo
 
 - **Doutor de instalação** (`doutor.py`, só biblioteca padrão, roda em qualquer Python 3.8+): examina

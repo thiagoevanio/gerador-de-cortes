@@ -2,11 +2,18 @@
 # Passo 1: garante um Python 3.12 (winget ou python.org, com a assinatura conferida).
 # Passo 2: o doutor (doutor.py) faz o resto: ambiente .venv, bibliotecas, Visual C++, ffmpeg e PATH,
 #          lendo os erros e tentando de novo; se ainda falhar, pede o diagnóstico à IA.
+# -Setup: chamado pelo Instalar-Gerador-de-Cortes.exe, que já cria os atalhos e a entrada em Aplicativos.
+param([switch]$Setup)
 $ErrorActionPreference = "Continue"
+# instalado pelo Setup.exe (tem o desinstalador dele): não duplica atalhos nem a entrada em Aplicativos
+if (Test-Path (Join-Path $PSScriptRoot "unins000.exe")) { $Setup = $true }
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {
-    Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    $extra = if ($Setup) { " -Setup" } else { "" }
+    # -Wait: o Setup.exe espera esta janela terminar antes de dizer "concluído"
+    try { Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"$extra" -Verb RunAs -Wait }
+    catch { Write-Host "Sem a permissão de administrador não dá pra instalar o Python e o Visual C++. Rode de novo e clique Sim." -ForegroundColor Red; Read-Host "Enter para sair" }
     exit
 }
 Set-Location $PSScriptRoot
@@ -132,6 +139,9 @@ if (-not $okDoutor) {
 }
 
 Titulo "5/5  Atalhos e Programas instalados"
+if ($Setup) {
+    Ok "Atalhos e a entrada em Aplicativos já foram criados pelo instalador"
+} else {
 $versao = (Get-Content (Join-Path $PSScriptRoot "VERSAO.txt") -ErrorAction SilentlyContinue | Select-Object -First 1)
 if (-not $versao) { $versao = "3.0.0" }
 $icone = Join-Path $PSScriptRoot "icone.ico"
@@ -156,6 +166,7 @@ $props = @{ DisplayName = "Gerador de Cortes 9:16"; DisplayVersion = $versao; Pu
             DisplayIcon = $icone; InstallLocation = $PSScriptRoot; UninstallString = $desinst; NoModify = 1; NoRepair = 1 }
 foreach ($k in $props.Keys) { Set-ItemProperty -Path $chave -Name $k -Value $props[$k] }
 Ok "Aparece em Configurações > Aplicativos (versão $versao)"
+}
 
 Write-Host ""
 if (-not $okDoutor) {

@@ -49,3 +49,6 @@ ferramentas/
 python_do_programa.txt
 instalacao.log
 .teste_escrita
+
+# instalador gerado pelo GERAR-SETUP.bat
+dist/

@@ -4,7 +4,7 @@
 com inteligência artificial, edição de nível profissional e aprendizado a partir dos resultados do seu
 canal.** Roda no seu PC (Windows), usando a sua própria assinatura de IA.
 
-![versão](https://img.shields.io/badge/versão-3.15-e3262e)
+![versão](https://img.shields.io/badge/versão-3.16-e3262e)
 ![python](https://img.shields.io/badge/python-3.12-3776ab)
 ![plataforma](https://img.shields.io/badge/plataforma-Windows%2010%2F11-0078d4)
 ![testes](https://img.shields.io/badge/testes-167%20passando-25c26e)
@@ -68,6 +68,10 @@ flowchart LR
   do Google AI Studio ou login) ou **Ollama** (local, grátis). Também funciona sem IA, com qualidade menor.
 
 ## Instalação
+
+O jeito mais fácil é o instalador de um arquivo só: rode `GERAR-SETUP.bat` (gera
+`dist/Instalar-Gerador-de-Cortes-<versão>.exe`) e mande esse `.exe`. Dois cliques nele instalam o programa,
+criam o atalho com o ícone na área de trabalho e no menu Iniciar e fazem o resto sozinhos. Ou, copiando a pasta:
 
 ```bat
 INSTALAR.bat
