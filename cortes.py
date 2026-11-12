@@ -99,6 +99,7 @@ PLATAFORMA_ALVO = "todas"
 LIMPAR_ABERTURA = True
 AB_VARIAR = "alternar"
 GERAR_CAPA = True
+CHECAR_MUSICA = True
 APARAR_IA = True
 TEMPLATE_APRENDE = True
 TIRAR_VICIOS = True
@@ -166,6 +167,7 @@ CONFIG_PADRAO = {
     "limpar_abertura": True,       # tira a enrolação ("Então,", "Bom,") dos primeiros segundos
     "ab_variar": "alternar",       # teste A/B: "pergunta", "template", "ambos" ou "alternar" (um de cada vez)
     "capa": True,                  # salva uma capa .jpg (quadro + pergunta) ao lado do corte
+    "checar_musica": True,         # avisa se o trecho parece ter música de fundo (risco de direitos autorais)
     "aparar_ia": True,             # a IA pode aparar o começo/fim fracos do trecho (até ~12s de cada ponta)
     "template_aprende": True,      # modo Automático prefere os templates que mais rendem no seu canal
     "horarios_postagem": ["12:00", "18:00", "21:00"],
@@ -366,6 +368,8 @@ def aplicar_config(cfg=None):
     AB_VARIAR = (cfg.get("ab_variar") if cfg.get("ab_variar") in ("pergunta", "template", "ambos", "alternar")
                  else "alternar")
     GERAR_CAPA = bool(cfg.get("capa", True))
+    global CHECAR_MUSICA
+    CHECAR_MUSICA = bool(cfg.get("checar_musica", True))
     global APARAR_IA, TEMPLATE_APRENDE
     APARAR_IA = bool(cfg.get("aparar_ia", True))
     TEMPLATE_APRENDE = bool(cfg.get("template_aprende", True))
@@ -1654,6 +1658,13 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
         print(f"   gancho em {gancho_t:.1f}s (zoom + boom)")
 
     duracao = duracao_video(video)
+    aviso_musica = None
+    if CHECAR_MUSICA and tem_audio(video):        # áudio original do trecho (antes da nossa trilha)
+        import audio_musica
+        aviso_musica = audio_musica.detectar(video, palavras)
+        if aviso_musica and aviso_musica["provavel"]:
+            print(f"   ⚠ parece ter MÚSICA DE FUNDO (confiança {aviso_musica['confianca']}): {aviso_musica['motivo']}."
+                  " Música com direitos autorais pode mutar ou bloquear o corte no YouTube — confira antes de postar.")
     W, H = (analise["w"], analise["h"]) if analise and analise.get("w") else info_video(video)
 
     # ---- template de edição (legenda + efeitos). "Automático" usa o tom que a IA já mandou ----
@@ -1901,6 +1912,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
              "resumo": dados.get("resumo") or None, "motivo_nota": dados.get("motivo_nota") or None,
              "chamada": dados.get("chamada") or None, "ia": dados.get("_ia") or None,
              "tom": te.normalizar_tom(dados.get("tom")), "perguntas_alternativas": dados.get("alternativas") or [],
+             "musica_de_fundo": aviso_musica,
              "revisor": {"margem": margem, "faixa_y": y_faixa,
                                          "ia": revisao.get("problema") if revisao else None},
              "criado": datetime.datetime.now().isoformat(timespec="seconds"), "status": "novo"}
