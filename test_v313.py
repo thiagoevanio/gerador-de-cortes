@@ -62,7 +62,11 @@ class Atualizador(unittest.TestCase):
             with patch.object(atualizar, "PASTA", local):
                 self.assertTrue(atualizar.em_git())
                 self.assertEqual(atualizar.mudancas_locais(), [])
+                tem, nova, url, notas = atualizar.verificar("")      # repositório privado: compara pelo git
+                self.assertEqual((tem, nova, url), (True, "1.1", None))
+                self.assertIn("v1.1", notas)
                 atualizar.aplicar(None, "1.1", log=msgs.append)
+                self.assertFalse(atualizar.verificar("")[0])         # já está em dia
                 self.assertEqual((local / "VERSAO.txt").read_text(encoding="utf-8").strip(), "1.1")
                 (local / "VERSAO.txt").write_text("minha mudança\n", encoding="utf-8")   # não salva no git
                 (origem / "VERSAO.txt").write_text("1.2\n", encoding="utf-8")

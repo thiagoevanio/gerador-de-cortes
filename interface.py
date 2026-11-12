@@ -150,10 +150,10 @@ class App(tk.Tk):
         self.after(4000, self._checar_atualizacao_silencioso)
 
     def _checar_atualizacao_silencioso(self):
-        repo = self.cfg.get("github_repo", "").strip()
-        if not repo:
-            return
         import atualizar
+        repo = self.cfg.get("github_repo", "").strip()
+        if not repo and not atualizar.em_git():
+            return
 
         def rodar():
             try:
@@ -172,7 +172,7 @@ class App(tk.Tk):
         import atualizar
         from tkinter import simpledialog
         repo = self.cfg.get("github_repo", "").strip()
-        if not repo:
+        if not repo and not atualizar.em_git():        # no git, o GitHub já está ligado à pasta
             repo = simpledialog.askstring(
                 "Atualizações", f"Versão instalada: {atualizar.versao_atual()}\n\n"
                 "Pra atualizar sozinho, coloque o seu repositório do GitHub onde você publica as versões\n"

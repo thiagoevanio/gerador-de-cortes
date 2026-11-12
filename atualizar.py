@@ -41,8 +41,28 @@ def _tupla(v):
     return tuple(nums + [0] * (3 - len(nums)))
 
 
+def verificar_git(interativo=False):
+    """Projeto no git: busca o GitHub (git fetch) e compara. Funciona com repositório privado (usa o login
+    do git). Sem 'interativo', nunca abre janela de senha. Devolve (tem_nova, versao_nova, None, notas)."""
+    env = None
+    if not interativo:
+        import os
+        env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never")
+    r = subprocess.run(["git", "fetch", "-q"], cwd=PASTA, capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", env=env, timeout=60,
+                       creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+    if r.returncode != 0:
+        raise RuntimeError(f"não consegui falar com o GitHub ({(r.stderr or '').strip()[:150]})")
+    novidades = _git("log", "--format=- %s", "HEAD..@{u}").stdout.strip()
+    remota = _git("show", "@{u}:VERSAO.txt")
+    nova = remota.stdout.strip() if remota.returncode == 0 else versao_atual()
+    return bool(novidades), nova, None, novidades
+
+
 def verificar(repo):
     """Devolve (tem_nova, versao_nova, url_zip, notas) ou levanta erro."""
+    if em_git() and _git("rev-parse", "--abbrev-ref", "@{u}").returncode == 0:
+        return verificar_git()                     # repositório com GitHub ligado: compara pelo git
     repo = repo.strip().removeprefix("https://github.com/").strip("/")
     req = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/latest",
                                  headers={"Accept": "application/vnd.github+json", "User-Agent": "cortes916"})
