@@ -147,7 +147,7 @@ CONFIG_PADRAO = {
     "legenda_palavras": 3,
     "legenda_cor": "#FFE600",
     "faixa_estilo": "Vermelho clássico",
-    "faixa_formato": "Rasgada",    # "Rasgada", "Pincelada", "Fita", "Adesivo" ou "Reta"
+    "faixa_formato": "Rasgada",    # "Rasgada", "Pincelada", "Fita", "Adesivo", "Balão", "Neon" ou "Reta"
     "seguir_rosto": True,          # câmera acompanha o rosto de quem fala
     "tirar_silencios": True,       # corta as pausas longas
     "efeito_gancho": True,         # zoom rápido + "boom" no momento mais forte
@@ -674,9 +674,14 @@ def carregar_whisper(nome):
     from faster_whisper import WhisperModel
     nome = MODELOS_WHISPER.get(nome, nome)
     if nome not in _modelo_cache:
-        log(f"Carregando Whisper '{nome}' (na 1ª vez baixa o modelo)...")
-        _modelo_cache[nome] = WhisperModel(nome, device="cpu", compute_type="int8",
-                                           cpu_threads=max(1, min(os.cpu_count() or 4, int(carregar_config().get("cpu_threads", max(1, (os.cpu_count() or 4)-2))))))
+        opcoes = dict(device="cpu", compute_type="int8",
+                      cpu_threads=max(1, min(os.cpu_count() or 4, int(carregar_config().get("cpu_threads", max(1, (os.cpu_count() or 4)-2))))))
+        try:     # já baixado: abre direto do PC, sem consultar a internet (nada de "baixando" a cada corte)
+            _modelo_cache[nome] = WhisperModel(nome, local_files_only=True, **opcoes)
+            log(f"Whisper '{nome}' pronto (já estava no PC).")
+        except Exception:
+            log(f"Baixando o Whisper '{nome}' — só desta vez, depois fica salvo no PC...")
+            _modelo_cache[nome] = WhisperModel(nome, **opcoes)
     return _modelo_cache[nome]
 
 
