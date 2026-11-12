@@ -43,6 +43,9 @@ for _fluxo in (sys.stdout, sys.stderr):      # emoji no log nunca derruba o cort
 import urllib.request
 from pathlib import Path
 
+import doutor as _doutor
+_doutor.path_do_processo()        # ffmpeg baixado pelo instalador vale na hora, sem reiniciar o PC
+
 # ============================================================
 # CONFIGURAÇÕES VISUAIS (pode mexer aqui)
 # ============================================================

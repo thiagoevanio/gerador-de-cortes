@@ -2266,8 +2266,12 @@ class App(tk.Tk):
                                       "Tudo usa a sua assinatura — sem chave de API.\n")
 
         self.status = {}
-        self._botao(esq, "⚡ INSTALAR TUDO QUE FALTA", self._instalar_tudo, cor=VERMELHO,
-                    cor_txt="white", grande=True).pack(fill="x", pady=(2, 2))
+        topo_inst = tk.Frame(esq, bg=CARTAO)
+        topo_inst.pack(fill="x", pady=(2, 2))
+        self._botao(topo_inst, "⚡ INSTALAR TUDO QUE FALTA", self._instalar_tudo, cor=VERMELHO,
+                    cor_txt="white", grande=True).pack(side="left", fill="x", expand=True)
+        self._botao(topo_inst, "🩺 Examinar o PC", lambda: self._acao_conta(contas.examinar_pc),
+                    grande=True).pack(side="left", padx=(6, 0))
 
         def linha(titulo, chave, botoes):
             f = tk.Frame(esq, bg=CARTAO)
@@ -2421,9 +2425,10 @@ class App(tk.Tk):
     def _instalar_tudo(self):
         ia = self.cfg["ia_principal"]
         ias = [ia] if ia in ("claude", "codex", "gemini", "local") else []
-        if not messagebox.askyesno("Instalar tudo", "Vou instalar o que estiver faltando: bibliotecas, "
-                                   "ffmpeg" + (f" e a IA escolhida ({ia})" if ias else "") +
-                                   ".\nO Windows pode pedir permissão. Continuar?"):
+        if not messagebox.askyesno("Instalar tudo", "Vou examinar o PC e instalar o que faltar: Python, "
+                                   "bibliotecas, Visual C++, ffmpeg" + (f" e a IA escolhida ({ia})" if ias else "") +
+                                   ".\nSe algo der erro, o programa lê o erro e tenta consertar (com a IA, "
+                                   "se tiver).\nO Windows pode pedir permissão. Continuar?"):
             return
         self._acao_conta(lambda log: contas.instalar_tudo(log, ias))
 

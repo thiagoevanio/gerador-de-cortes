@@ -15,11 +15,9 @@ PASTA = Path(__file__).resolve().parent
 SEM_JANELA = cortes.SEM_JANELA
 WINGET_OPCOES = ["--accept-package-agreements", "--accept-source-agreements", "--silent"]
 
-BIBLIOTECAS = [("yt-dlp", "yt_dlp"), ("faster-whisper", "faster_whisper"),
-               ("Pillow", "PIL"), ("streamlink", "streamlink"), ("numpy", "numpy"),
-               ("opencv", "cv2"), ("google-api", "googleapiclient"),
-               ("google-auth", "google_auth_oauthlib"), ("openpyxl", "openpyxl"),
-               ("qrcode", "qrcode")]
+import doutor
+
+BIBLIOTECAS = doutor.BIBLIOTECAS
 
 
 def python_console():
@@ -95,9 +93,9 @@ def _winget(pacote, nome, log):
 
 
 def instalar_ffmpeg(log):
-    ok = _winget("Gyan.FFmpeg", "ffmpeg", log)
-    log("✅ ffmpeg instalado. FECHE E ABRA a interface pra ele ser reconhecido." if ok
-        else "❌ Não consegui instalar o ffmpeg.")
+    """ffmpeg completo dentro da pasta do programa (hash oficial conferido): vale na hora, sem reiniciar."""
+    ok = doutor.conserto_instalar_ffmpeg(log)
+    log("✅ ffmpeg instalado." if ok else "❌ Não consegui instalar o ffmpeg. Clique em 'Examinar o PC'.")
     return ok
 
 
@@ -372,16 +370,23 @@ def testar_local(log):
 
 
 # ---------------- tudo de uma vez ----------------
+def examinar_pc(log):
+    """Mostra o que o PC tem e o que falta (sem instalar nada)."""
+    log("Examinando o PC...")
+    log(doutor.texto_relatorio(doutor.examinar()))
+    return True
+
+
 def instalar_tudo(log, ias=("claude",)):
-    log("=== Instalando tudo que falta ===")
-    if faltando_bibliotecas():
+    log("=== Examinando o PC e instalando o que falta ===")
+    if faltando_bibliotecas():            # faltam aqui: instala neste Python e depois confere tudo
         instalar_bibliotecas(log)
-    else:
-        log("✅ Bibliotecas já instaladas.")
-    if not tem_ffmpeg():
-        instalar_ffmpeg(log)
-    else:
-        log("✅ ffmpeg já instalado.")
+    ok, relatorio = doutor.consertar(log, usar_ia=True)
+    log(doutor.texto_relatorio(relatorio))
+    prog = doutor.python_do_programa()
+    if ok and prog and os.path.normcase(str(prog)) != os.path.normcase(python_console()):
+        log("⚠ As bibliotecas foram instaladas no ambiente do programa. FECHE e abra pelo atalho "
+            "'Gerador de Cortes' pra usar.")
     for ia in ias:
         if ia == "claude" and not tem_claude():
             instalar_claude(log)
