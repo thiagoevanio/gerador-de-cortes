@@ -28,6 +28,7 @@ sys.path.insert(0, str(PASTA))
 
 import cortes   # noqa: E402  (só usa bibliotecas padrão na importação)
 import contas   # noqa: E402
+import desempenho   # noqa: E402
 
 VERMELHO = "#D90F0F"
 FUNDO = "#16161A"
@@ -2276,6 +2277,14 @@ class App(tk.Tk):
                     cor_txt="white", grande=True).pack(side="left", fill="x", expand=True)
         self._botao(topo_inst, "🩺 Examinar o PC", lambda: self._acao_conta(contas.examinar_pc),
                     grande=True).pack(side="left", padx=(6, 0))
+        ferr = tk.Frame(esq, bg=CARTAO)
+        ferr.pack(fill="x", pady=(4, 2))
+        self._botao(ferr, "⚡ Testar velocidade", self._testar_velocidade).pack(side="left", fill="x", expand=True)
+        self._botao(ferr, "🧹 Espaço em disco", lambda: self._acao_conta(desempenho.limpar)).pack(
+            side="left", fill="x", expand=True, padx=(6, 0))
+        self.b_fraco = self._botao(ferr, "", self._alternar_pc_fraco)
+        self.b_fraco.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        self._mostrar_pc_fraco()
 
         def linha(titulo, chave, botoes):
             f = tk.Frame(esq, bg=CARTAO)
@@ -2435,6 +2444,36 @@ class App(tk.Tk):
                                    "se tiver).\nO Windows pode pedir permissão. Continuar?"):
             return
         self._acao_conta(lambda log: contas.instalar_tudo(log, ias))
+
+    def _mostrar_pc_fraco(self):
+        ligado = bool(cortes.carregar_config().get("modo_pc_fraco"))
+        self.b_fraco.configure(text="🐢 Modo PC fraco: " + ("LIGADO" if ligado else "desligado"))
+
+    def _alternar_pc_fraco(self, ligar=None):
+        cfg = cortes.carregar_config()
+        ligar = (not cfg.get("modo_pc_fraco")) if ligar is None else ligar
+        texto = ("Ligar o modo PC fraco?\n\n• legenda com o Whisper 'base' (~2x mais rápido, um pouco menos preciso)\n"
+                 "• vídeo baixado em 720p\n• rostos lidos a cada 1 s\n\nDá pra desligar a qualquer hora."
+                 if ligar else "Desligar o modo PC fraco? Volta pro Whisper 'small', 1080p e rostos a cada 0,5 s.")
+        if not messagebox.askyesno("Modo PC fraco", texto):
+            return
+        cfg["modo_pc_fraco"] = ligar
+        cortes.salvar_config(cfg)
+        cortes.aplicar_config()
+        self._recarregar_cfg()
+        self._mostrar_pc_fraco()
+        self._log(self.log_contas, "🐢 Modo PC fraco " + ("ligado." if ligar else "desligado."))
+
+    def _testar_velocidade(self):
+        self.log_contas.insert("end", "\n")
+
+        def rodar():
+            return desempenho.testar_velocidade(lambda t: self._log(self.log_contas, t))
+
+        def fim(r):
+            if r and r.get("pc_fraco") and not cortes.carregar_config().get("modo_pc_fraco"):
+                self._alternar_pc_fraco(True)
+        self._em_segundo_plano(rodar, fim)
 
     def _acao_conta(self, func):
         self.log_contas.insert("end", "\n")

@@ -108,6 +108,7 @@ TEMPLATE_APRENDE = True
 TIRAR_VICIOS = True
 AUDIO_PADRAO = True
 BAIXAR_1080 = True
+MODO_PC_FRACO = False         # Whisper base, 720p e rostos a cada 1 s (desempenho.py recomenda)
 AB_TESTE = False
 ESPANHOL = False
 CHECAR_INEDITO = True
@@ -379,6 +380,10 @@ def aplicar_config(cfg=None):
     TIRAR_VICIOS = bool(cfg.get("tirar_vicios", True))
     AUDIO_PADRAO = bool(cfg.get("audio_padrao", True))
     BAIXAR_1080 = bool(cfg.get("baixar_1080", True))
+    global MODO_PC_FRACO
+    MODO_PC_FRACO = bool(cfg.get("modo_pc_fraco", False))
+    if MODO_PC_FRACO:                      # PC fraco: baixa em 720p (decodificar 1080p pesa em 2 núcleos)
+        BAIXAR_1080 = False
     AB_TESTE = bool(cfg.get("ab_teste", False))
     ESPANHOL = bool(cfg.get("espanhol", False))
     CHECAR_INEDITO = bool(cfg.get("checar_inedito", True))
@@ -419,12 +424,23 @@ aplicar_config()
 # ============================================================
 _callback_progresso = ContextVar("progresso", default=None)
 _job_atual = ContextVar("job", default=None)
+_cronometro = ContextVar("cronometro", default=None)    # [(hora, mensagem)] do corte em andamento
 
 def log(msg):
+    marcas = _cronometro.get()
+    if marcas is not None:
+        marcas.append((time.time(), str(msg)))
     callback = _callback_progresso.get()
     if callback:
         callback(msg)
     print(f"\n>>> {msg}", flush=True)
+
+
+from desempenho import etapas_do_log, registrar_tempos as _registrar_tempos  # noqa: E402
+
+
+def registrar_tempos(marcas, saida=None, duracao=None, arquivo=None):
+    return _registrar_tempos(marcas, saida, duracao, arquivo, encoder=_encoder_h264_cache or "")
 
 
 def parse_tempo(t) -> float:
@@ -446,13 +462,103 @@ def nome_seguro(texto: str, limite=50) -> str:
     return texto[:limite] or "corte"
 
 
-def rodar(cmd, cwd=None):
+# decodificação pelo chip de vídeo: o mesmo que codifica (Intel decodifica 3x mais rápido que 2 núcleos)
+_DECODER_HW = {"h264_qsv": "qsv", "h264_nvenc": "cuda", "h264_amf": "d3d11va"}
+_EXT_VIDEO = {".mp4", ".mkv", ".ts", ".flv", ".webm", ".mov", ".m4v", ".avi", ".m3u8"}
+_decodificar_hw = True
+
+
+def _com_decodificador_hw(cmd):
+    """Põe '-hwaccel' antes de cada vídeo de entrada quando a saída usa o encoder de hardware.
+    Os quadros voltam pra memória normal, então todos os filtros continuam funcionando."""
+    if not _decodificar_hw or "-hwaccel" in cmd or not carregar_config().get("usar_gpu_decoder", True):
+        return cmd
+    enc = next((cmd[i + 1] for i, x in enumerate(cmd[:-1]) if x == "-c:v" and cmd[i + 1] in _DECODER_HW), None)
+    if not enc:
+        return cmd
+    novo = []
+    for i, x in enumerate(cmd):
+        if x == "-i" and i + 1 < len(cmd) and Path(str(cmd[i + 1])).suffix.lower() in _EXT_VIDEO:
+            novo += ["-hwaccel", _DECODER_HW[enc]]
+        novo.append(x)
+    return novo
+
+
+def _sem_hwaccel(cmd):
+    novo, pular = [], False
+    for x in cmd:
+        if pular:
+            pular = False
+            continue
+        if x == "-hwaccel":
+            pular = True
+            continue
+        novo.append(x)
+    return novo
+
+
+def _tempo_curto(s):
+    s = max(0, int(s))
+    return f"{s // 60} min {s % 60:02d} s" if s >= 60 else f"{s} s"
+
+
+def _executar(cmd, cwd=None, progresso=None):
+    """subprocess.run de sempre; com progresso=(rótulo, duração em s) lê o 'time=' do ffmpeg e
+    avisa a cada 25% quanto falta."""
+    limite = max(60, int(carregar_config().get("timeout_ffmpeg_seg", 3600)))
+    if not progresso or not progresso[1]:
+        return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=limite,
+                              encoding="utf-8", errors="replace", creationflags=SEM_JANELA)
+    rotulo, duracao = progresso
+    proc = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=SEM_JANELA)
+    saida = []
+    leitor = threading.Thread(target=lambda: saida.append(proc.stdout.read()), daemon=True)
+    leitor.start()
+    erro, janela, t0, proximo = bytearray(), b"", time.time(), 0.25
+    try:
+        while True:
+            pedaco = proc.stderr.read(256)
+            if not pedaco:
+                break
+            erro += pedaco
+            janela = (janela + pedaco)[-300:]
+            achados = re.findall(rb"time=(\d+):(\d+):(\d+(?:\.\d+)?)", janela)
+            if achados:
+                h, m, s = achados[-1]
+                feito = min(1.0, (int(h) * 3600 + int(m) * 60 + float(s)) / duracao)
+                if proximo <= feito < 0.99:
+                    gasto = time.time() - t0
+                    log(f"{rotulo}: {int(feito * 100)}% (falta ~{_tempo_curto(gasto / feito - gasto)})")
+                    while proximo <= feito:
+                        proximo += 0.25
+            if time.time() - t0 > limite:
+                proc.kill()
+                raise subprocess.TimeoutExpired(cmd, limite)
+        proc.wait(timeout=60)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+        leitor.join(5)
+        proc.stdout.close()
+        proc.stderr.close()
+    return subprocess.CompletedProcess(cmd, proc.returncode, (saida[0] if saida else b"").decode("utf-8", "replace"),
+                                       bytes(erro).decode("utf-8", "replace"))
+
+
+def rodar(cmd, cwd=None, progresso=None):
+    global _decodificar_hw
     if Path(str(cmd[0])).stem.lower() == 'ffmpeg':
         n = str(max(1, min(os.cpu_count() or 4, int(carregar_config().get('cpu_threads', 4)))))
         cmd = [cmd[0], '-threads', n, '-filter_threads', n, '-filter_complex_threads', n,
                *cmd[1:-1], '-threads', n, cmd[-1]]
-    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=max(60, int(carregar_config().get("timeout_ffmpeg_seg", 3600))),
-                       encoding="utf-8", errors="replace", creationflags=SEM_JANELA)
+        cmd = _com_decodificador_hw(cmd)
+    r = _executar(cmd, cwd, progresso)
+    if r.returncode != 0 and "-hwaccel" in cmd:
+        # algum vídeo que o chip não sabe decodificar (ex.: AV1 num Intel antigo): volta pro processador
+        print("   ⚠ o chip de vídeo não decodificou esse arquivo — decodificando no processador.")
+        _decodificar_hw = False
+        cmd = _sem_hwaccel(cmd)
+        r = _executar(cmd, cwd, progresso)
     if r.returncode != 0:
         # acelerador de vídeo (GPU) falhou nesse arquivo? refaz no processador e não tenta mais a GPU
         hw = next((i for i, x in enumerate(cmd[:-1]) if x == "-c:v" and cmd[i + 1] in _TAMANHO_ARGS_HW), None)
@@ -529,10 +635,14 @@ def detectar_encoder_h264() -> str:
 
 def args_encoder_video(intermediario=False, crf_padrao=19):
     '''Parâmetros do encoder de vídeo: usa GPU se disponível e habilitado, ou libx264 mais nítido.'''
-    if intermediario:
-        return ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "16"]
     usar_gpu = bool(carregar_config().get("usar_gpu_encoder", True))
     enc = detectar_encoder_h264() if usar_gpu else "libx264"
+    if intermediario:
+        # arquivo de passagem: qualidade alta. No chip de vídeo sai ~2x mais rápido e 3x menor
+        # que o libx264 ultrafast (que fica pro PC sem acelerador)
+        if enc == "libx264":
+            return ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "16"]
+        crf_padrao = 17
     if enc == "h264_nvenc":
         return ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", str(crf_padrao)]
     if enc == "h264_qsv":
@@ -626,10 +736,10 @@ def recortar_local(arquivo, inicio, fim, pasta: Path, meta=None):
         fim = min(fim, total)
     if fim <= inicio:
         raise ValueError('Não há vídeo disponível no intervalo solicitado.')
-    cmd = ["-map", "0:v:0", "-map", "0:a:0?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+    cmd = ["-map", "0:v:0", "-map", "0:a:0?", *args_encoder_video(crf_padrao=20),
            "-c:a", "aac", "-avoid_negative_ts", "make_zero", str(saida)]
     rodar(["ffmpeg", "-y", "-fflags", "+discardcorrupt", "-ss", f"{inicio:.2f}", "-i", str(arquivo),
-           "-t", f"{fim - inicio:.2f}", *cmd])
+           "-t", f"{fim - inicio:.2f}", *cmd], progresso=("Recortando", fim - inicio))
     if duracao_video(saida) < 1:              # live com "buraco" (anúncio/queda): procura decodificando
         print("   ⚠ recorte rápido saiu vazio — tentando do jeito lento (mais preciso)...")
         rodar(["ffmpeg", "-y", "-fflags", "+discardcorrupt", "-i", str(arquivo), "-ss", f"{inicio:.2f}",
@@ -669,7 +779,9 @@ def modelo_final(nome=None):
     momentos continua no base (rápido); só o corte final, de ~1 minuto, usa o mais preciso."""
     nome = nome or MODELO_WHISPER
     if nome == "auto":
-        nome = str(carregar_config().get("whisper_final", "small") or "small")
+        cfg = carregar_config()
+        padrao = "base" if cfg.get("modo_pc_fraco") else "small"     # modo PC fraco: legenda ~2x mais rápida
+        nome = str(cfg.get("whisper_final") or padrao)
     return nome if nome in ("tiny", "base", "small", "medium", "turbo", "large-v3") else "small"
 
 
@@ -1038,6 +1150,8 @@ def gerar_corte(*args, formato="curto", **kwargs):
     job = kwargs.pop('_job_id', None)
     token_job = _job_atual.set(job)
     token = _callback_progresso.set(callback)
+    marcas = [(time.time(), "Aguardando o renderizador")]
+    token_cron = _cronometro.set(marcas)
     try:
         log('Aguardando o renderizador...')
         with contexto_render():
@@ -1059,6 +1173,11 @@ def gerar_corte(*args, formato="curto", **kwargs):
                     raise RuntimeError("não consegui fazer o corte longo")
                 return feitos[0]
             saida = _gerar_corte(*args, **kwargs)
+            if saida:
+                try:
+                    registrar_tempos(marcas, saida, round(parse_tempo(fim) - parse_tempo(inicio), 1))
+                except (TypeError, ValueError):
+                    registrar_tempos(marcas, saida)
             if job:
                 from conclusao_tarefas import confirmar
                 confirmar(job,saida)
@@ -1068,6 +1187,7 @@ def gerar_corte(*args, formato="curto", **kwargs):
                               kwargs, dados_prontos=[longo.dados_do_curto(saida)])
             return saida
     finally:
+        _cronometro.reset(token_cron)
         _job_atual.reset(token_job)
         _callback_progresso.reset(token)
 
@@ -1196,7 +1316,7 @@ def _preparar_corte(fonte_video, inicio, fim, foto=None, pergunta=None, legenda=
     analise = None
     if modo == "cortado" and (SEGUIR_ROSTO or LAYOUT != "normal" or REVISOR):
         log("Olhando os rostos do vídeo...")
-        analise = efeitos.analisar_rostos(video)
+        analise = efeitos.analisar_rostos(video, passo=1.0 if MODO_PC_FRACO else 0.5)
     tipo, caixas = "normal", None
     if analise and LAYOUT in ("auto", "podcast", "jogo"):
         tipo, caixas = efeitos.detectar_layout(analise)

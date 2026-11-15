@@ -2,6 +2,22 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.18 — Desempenho: cortes ~45% mais rápidos
+
+Medido num i5-7200U (2 núcleos, Intel HD 620), mesmo corte de 45 s: **186 s → 100 s**.
+- **Rostos 5x mais rápidos** (62 s → 17 s): o vídeo é lido em sequência (`efeitos.amostras_video`) em vez
+  de pular pra cada amostra, o que obrigava a decodificar de novo desde o último quadro-chave.
+- **Chip de vídeo no recorte e nos intermediários:** o recorte do trecho e os arquivos de passagem
+  (gancho, pausas) usam o encoder de hardware, e o **chip também decodifica** (`-hwaccel`). Recorte
+  36 s → 11 s. Se o chip não aceitar um vídeo, aquele comando refaz no processador sozinho.
+- **Projeto de edição 5x menor:** o `com_gancho.mp4` guardado pra reeditar caiu de 240 MB para 47 MB.
+- **Lives checadas em paralelo** (4 por vez): cada checagem leva ~6 s; com 10 canais, a rodada caiu de
+  ~1 min para ~15 s.
+- **Progresso com tempo restante** no recorte e na montagem ("Montando o vídeo: 50% (falta ~13 s)").
+- **Tempos por etapa** de cada corte em `analises/tempos.jsonl`.
+- **Novas ferramentas em Contas & IA:** ⚡ Testar velocidade, 🐢 Modo PC fraco e 🧹 Espaço em disco
+  (limpeza automática dos projetos de edição com mais de 30 dias e aviso de disco quase cheio).
+
 ## 3.17 — Extensão do Chrome 3.0 com bot
 
 - **Painel novo** em Twitch, Kick e YouTube (`ui.js`): visual isolado do site (shadow DOM), abas

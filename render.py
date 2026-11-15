@@ -202,7 +202,7 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
            "-filter_complex", filtro, "-map", "[final]", *mapa_audio,
            "-shortest", "-r", "30", *cortes.args_encoder_video(intermediario=False),
            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
-           str(saida.resolve())], cwd=video.parent)
+           str(saida.resolve())], cwd=video.parent, progresso=("Montando o vídeo", _duracao_util(video)))
     from qualidade import inspecionar
     relatorio=inspecionar(saida,_duracao_util(video),exigir_audio=tem_audio(video),
                          aprofundar=cortes.carregar_config(cortes.PERFIL_EM_USO).get('revisao_tecnica',False))

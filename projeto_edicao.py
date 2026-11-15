@@ -44,6 +44,8 @@ def renderizar_revisao(video, palavras):
     pasta = (video.parent/projeto).resolve()
     if not pasta.is_relative_to((video.parent/'_edicao').resolve()):
         raise ValueError('Receita fora da pasta de edição.')
+    if not (pasta/'receita.json').exists():
+        raise ValueError('O projeto de edição deste corte foi apagado na limpeza automática (projetos antigos). Gere o corte de novo pra reeditar.')
     r = json.loads((pasta/'receita.json').read_text(encoding='utf-8'))
     def local(nome):
         if not nome:
@@ -112,6 +114,8 @@ def trocar_pergunta(video, pergunta, destaque=None):
     pasta = (video.parent/projeto).resolve()
     if not pasta.is_relative_to((video.parent/'_edicao').resolve()):
         raise ValueError('Receita fora da pasta de edição.')
+    if not (pasta/'receita.json').exists():
+        raise ValueError('O projeto de edição deste corte foi apagado na limpeza automática (projetos antigos). Gere o corte de novo pra reeditar.')
     r = json.loads((pasta/'receita.json').read_text(encoding='utf-8'))
     if 'clean' not in r:
         raise ValueError('Corte antigo: a receita não guarda os dados da faixa.')

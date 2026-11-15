@@ -194,6 +194,15 @@ class ChatTwitch(threading.Thread):
                 time.sleep(10)
 
 
+def checar_lives(lista, simultaneas=4):
+    """info_live de vários canais ao mesmo tempo (na ordem da lista)."""
+    if not lista:
+        return []
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=max(1, min(simultaneas, len(lista)))) as pool:
+        return list(pool.map(lambda c: info_live(c[1], c[3]), lista))
+
+
 def info_live(canal, url=None):
     """Devolve os dados da live se estiver ao vivo, senão None. Funciona pra Twitch, Kick e YouTube."""
     url = url or f"https://www.twitch.tv/{canal}"
@@ -1539,22 +1548,24 @@ def main():
                 snapshot = json.loads(json.dumps(estado))
                 cfg_rede, ativos = dict(cfg), set(gravacoes)
                 def consultar(cfg_rede=cfg_rede, ativos=ativos, snapshot=snapshot):
-                    descobertas = []
+                    descobertas, checar = [], []
                     try:
                         for plat in ('twitch', 'kick'):
                             for canal in cfg_rede[plat]:
                                 chave = chave_live(canal, plat)
-                                url = url_live(canal, plat)
                                 if chave not in ativos:
-                                    descobertas.append((chave, canal, plat, url, info_live(canal, url)))
-                                if plat == 'twitch' and cfg_rede.get('clips_twitch'):
-                                    verificar_clips_twitch(canal, cfg_rede, snapshot, fila)
+                                    checar.append((chave, canal, plat, url_live(canal, plat)))
                         for url_canal in cfg_rede['youtube_lives']:
                             canal = url_canal.rstrip('/').split('/')[-1].lstrip('@')
                             url = url_canal if url_canal.endswith('/live') else url_canal+'/live'
                             chave = 'ytlive:'+canal
                             if chave not in ativos:
-                                descobertas.append((chave, canal, 'youtube', url, info_live(canal, url)))
+                                checar.append((chave, canal, 'youtube', url))
+                        # cada checagem leva ~6 s (abre o streamlink): 4 de cada vez em vez de uma por uma
+                        descobertas = [(*c, m) for c, m in zip(checar, checar_lives(checar))]
+                        if cfg_rede.get('clips_twitch'):
+                            for canal in cfg_rede['twitch']:
+                                verificar_clips_twitch(canal, cfg_rede, snapshot, fila)
                         for url in cfg_rede['youtube']:
                             verificar_youtube(url, cfg_rede, snapshot)
                         processar_pendentes_youtube(cfg_rede, snapshot, fila)
@@ -1579,6 +1590,11 @@ def main():
                     if removidas: log(f'Retenção: {len(removidas)} gravações antigas removidas.')
                 except (OSError, ValueError) as e:
                     log(f'Retenção: {e}')
+                try:                                   # projetos de edição antigos, restos e aviso de disco
+                    import desempenho
+                    desempenho.limpeza_automatica(log=log)
+                except OSError as e:
+                    log(f'Limpeza: {e}')
                 salvar_estado(estado)
                 talvez_desligar(cfg, gravacoes, fila, ocupado)
 

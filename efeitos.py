@@ -270,6 +270,24 @@ def _suavizar_segmento_camera(valores, zona_morta=0.055, alfa=0.32, passo_max=0.
     return volta
 
 
+def amostras_video(cap, passo):
+    """Percorre o vídeo EM SEQUÊNCIA e devolve (índice, quadro) a cada `passo` segundos.
+    grab() só avança (barato); retrieve() converte só os quadros usados. Pular com
+    CAP_PROP_POS_FRAMES obrigava a decodificar de novo desde o último quadro-chave a cada amostra
+    (5x mais lento num PC de 2 núcleos)."""
+    import cv2
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30
+    salto = max(1, int(round(fps * passo)))
+    idx = 0
+    while cap.grab():
+        if idx % salto == 0:
+            ok, frame = cap.retrieve()
+            if not ok:
+                break
+            yield idx, frame
+        idx += 1
+
+
 def trajetoria_rosto(video: Path, passo=0.5):
     """Lista de (segundo, centro_x de 0 a 1) do maior rosto. None se quase não achar rosto."""
     try:
@@ -282,14 +300,9 @@ def trajetoria_rosto(video: Path, passo=0.5):
         return None
     cap = cv2.VideoCapture(str(video))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
-    total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
     pontos, achou = [], 0
     try:
-        for idx in range(0, max(total, 1), max(1, int(fps * passo))):
-            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-            ok, frame = cap.read()
-            if not ok:
-                break
+        for idx, frame in amostras_video(cap, passo):
             h, w = frame.shape[:2]
             pequeno = cv2.resize(frame, (480, int(480 * h / w)))
             rostos = detectar(pequeno)
@@ -619,16 +632,11 @@ def analisar_rostos(video: Path, passo=0.5, largura=640):
         return None
     cap = cv2.VideoCapture(str(video))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
-    total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
     W = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
     H = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
     amostras, cortes_cena, anterior_cena = [], [], None
     try:
-        for idx in range(0, max(total, 1), max(1, int(fps * passo))):
-            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-            ok, frame = cap.read()
-            if not ok:
-                break
+        for idx, frame in amostras_video(cap, passo):
             h, w = frame.shape[:2]
             alt = int(largura * h / w)
             peq = cv2.resize(frame, (largura, alt))

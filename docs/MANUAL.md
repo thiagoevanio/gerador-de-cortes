@@ -37,6 +37,8 @@ Copiou a pasta de um PC que já tinha o programa? Sem problema: o doutor percebe
 
 Depois, abra o programa, vá em **🔑 Contas & IA** e clique em **Conectar conta** na IA que for usar. Esse login só precisa ser feito uma vez, por você.
 
+**Velocidade:** o programa usa o chip de vídeo do PC (Intel Quick Sync, Nvidia ou AMD) pra decodificar e codificar o vídeo, lê os rostos percorrendo o vídeo em sequência e mostra o andamento da montagem com o tempo que falta. Num notebook i5 de 2 núcleos, um corte de 45 s caiu de ~3 min para ~1 min 40 s.
+
 ## Usar
 
 Abra pelo atalho, ou com dois cliques em `interface.bat`.
@@ -149,6 +151,9 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
 
 ### 🔑 Contas & IA
 - **⚡ INSTALAR TUDO QUE FALTA:** um clique só.
+- **⚡ Testar velocidade** (uns 2 minutos): mede neste PC o vídeo no processador e no chip de vídeo, a leitura de rostos e o Whisper (com a fala de um corte seu), mostra **quanto cada etapa levou nos seus últimos cortes** e recomenda ajustes. Se o PC for fraco, ele oferece ligar o modo PC fraco.
+- **🐢 Modo PC fraco:** legenda com o Whisper *base* (~2x mais rápido, um pouco menos preciso), vídeo baixado em 720p e rostos lidos a cada 1 s. Liga e desliga com um clique.
+- **🧹 Espaço em disco:** mostra quanto ocupam os cortes, os projetos de edição e as gravações, e apaga os **projetos de edição com mais de 30 dias** e os restos de tarefas que caíram no meio. Cortes prontos e gravações não são apagados aqui. O monitor faz essa limpeza sozinho e avisa quando sobram menos de 10 GB (dá pra mudar em `config.json`: `dias_projetos_edicao`, 0 = nunca apagar, e `aviso_disco_gb`).
 - **IAs:**
   - **Claude:** assinatura do Claude.
   - **Codex:** conta do ChatGPT.
