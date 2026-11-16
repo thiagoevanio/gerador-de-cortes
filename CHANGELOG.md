@@ -2,6 +2,16 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.20 — Aba Contas que rola e 3 faixas novas
+
+- **Contas & IA:** a aba ganhou barra de rolagem (e rola com a rodinha do mouse). Antes, em telas
+  menores, a parte de baixo (qualidade da IA, uso da IA) ficava escondida.
+- **3 formatos novos de faixa** (Visual → Formato da faixa), todos com as cores do estilo escolhido:
+  - **Plantão (jornal):** barra reta com a etiqueta "URGENTE" e a tarja branca com o canal.
+  - **Explosão (HQ):** estrela de quadrinho com contorno preto e sombra chapada.
+  - **Diagonal (esporte):** faixa inclinada com bloco deslocado e listras de velocidade.
+- O **👁 Ver formatos** agora mostra as amostras em 3 colunas, pra caber os 10 formatos na tela.
+
 ## 3.19 — Downloads do YouTube que não travam
 
 O problema: cortes de vídeos do YouTube demoravam demais ou não terminavam. Medido: o download do

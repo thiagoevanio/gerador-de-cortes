@@ -126,7 +126,7 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
 - **Teste A/B:** gera também uma versão B com outra pergunta. Poste as duas (ex: uma no YouTube e outra no TikTok) e veja em Resultados qual estilo ganhou. A vencedora ensina a IA.
 - **Versão em espanhol:** a IA traduz a pergunta, a legenda e o título (1 chamada curta) e gera o corte na pasta `espanhol`, pra um 2º canal voltado pra América Latina.
 - **Checar se é inédito:** antes de montar, procura no YouTube se outros canais já postaram aquele lance esta semana.
-- Posição, tamanho e cor da legenda, cor e **formato da faixa** (Rasgada, Pincelada, Fita adesiva, Adesivo, Balão de fala, Neon ou Reta clássica) e selo do canal, com prévia ao vivo. O botão **👁 Ver formatos** mostra uma amostra de cada faixa com as suas cores; é só clicar na que você quer.
+- Posição, tamanho e cor da legenda, cor e **formato da faixa** (Rasgada, Pincelada, Fita adesiva, Adesivo, Balão de fala, Neon, Plantão (jornal), Explosão (HQ), Diagonal (esporte) ou Reta clássica) e selo do canal, com prévia ao vivo. O botão **👁 Ver formatos** mostra uma amostra de cada faixa com as suas cores; é só clicar na que você quer.
 - **Efeitos:**
   - **Seguir o rosto:** a câmera acompanha quem fala, em vez de cortar sempre o meio.
   - **Tirar silêncios:** corta as pausas longas.

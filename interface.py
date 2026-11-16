@@ -567,7 +567,7 @@ class App(tk.Tk):
     def _aba_mudou(self, abas):
         nome = abas.tab(abas.select(), "text")
         self._aba_atual = "galeria" if "Galeria" in nome else "tend" if "Tendências" in nome else \
-            "result" if "Resultados" in nome else ""
+            "result" if "Resultados" in nome else "contas" if "Contas" in nome else ""
         if self._aba_atual == "galeria":
             self._carregar_galeria()
         elif self._aba_atual == "tend" and not getattr(self, "_tend_carregado", False):
@@ -1018,19 +1018,20 @@ class App(tk.Tk):
         self._carregar_galeria()
 
     def _rolar(self, e):
-        alvo = {"galeria": getattr(self, "can_gal", None), "tend": getattr(self, "can_tend", None)}.get(self._aba_atual)
-        if alvo:
+        alvo = {"galeria": getattr(self, "can_gal", None), "tend": getattr(self, "can_tend", None),
+                "contas": getattr(self, "can_contas", None)}.get(self._aba_atual)
+        if alvo and not isinstance(e.widget, tk.Text):      # a caixa de mensagens rola sozinha
             alvo.yview_scroll(-e.delta // 120, "units")
 
-    def _lista_rolavel(self, pai):
-        corpo = tk.Frame(pai, bg=FUNDO)
+    def _lista_rolavel(self, pai, bg=FUNDO):
+        corpo = tk.Frame(pai, bg=bg)
         corpo.pack(side="left", fill="both", expand=True)
-        can = tk.Canvas(corpo, bg=FUNDO, highlightthickness=0)
+        can = tk.Canvas(corpo, bg=bg, highlightthickness=0)
         barra = ttk.Scrollbar(corpo, orient="vertical", command=can.yview)
         can.configure(yscrollcommand=barra.set)
         barra.pack(side="right", fill="y")
         can.pack(side="left", fill="both", expand=True)
-        interno = tk.Frame(can, bg=FUNDO)
+        interno = tk.Frame(can, bg=bg)
         janela = can.create_window((0, 0), window=interno, anchor="nw")
         interno.bind("<Configure>", lambda e: can.configure(scrollregion=can.bbox("all")))
         can.bind("<Configure>", lambda e: can.itemconfigure(janela, width=e.width))
@@ -1941,7 +1942,8 @@ class App(tk.Tk):
         rot(l4, "Formato da faixa:")
         self.formatos = {"Rasgada (papel)": "Rasgada", "Pincelada": "Pincelada",
                          "Fita adesiva": "Fita", "Adesivo": "Adesivo", "Balão de fala": "Balão",
-                         "Neon": "Neon", "Reta (clássica)": "Reta"}
+                         "Neon": "Neon", "Plantão (jornal)": "Plantão", "Explosão (HQ)": "Explosão",
+                         "Diagonal (esporte)": "Diagonal", "Reta (clássica)": "Reta"}
         self.v_formato = tk.StringVar()
         cb3 = ttk.Combobox(l4, textvariable=self.v_formato, state="readonly", width=15, values=list(self.formatos))
         cb3.pack(side="left", padx=(6, 14))
@@ -2183,7 +2185,7 @@ class App(tk.Tk):
                 img = getattr(faixas, func)(pergunta, destaque, canal).convert("RGB")
             except Exception:
                 continue
-            img.thumbnail((400, 150))
+            img.thumbnail((330, 124))
             arq = Path(pasta) / f"faixa_{formato}.png"
             img.save(arq)
             saida[formato] = arq
@@ -2215,7 +2217,7 @@ class App(tk.Tk):
                 foto = tk.PhotoImage(file=str(arq))
                 janela._imgs.append(foto)
                 cel = tk.Frame(grade, bg=VERMELHO if formato == atual else CARTAO, padx=3, pady=3)
-                cel.grid(row=i // 2, column=i % 2, padx=6, pady=6)
+                cel.grid(row=i // 3, column=i % 3, padx=5, pady=5)
 
                 def escolher(_e=None, f=formato):
                     self.v_formato.set(nomes.get(f, self.v_formato.get()))
@@ -2261,7 +2263,9 @@ class App(tk.Tk):
     # ABA: CONTAS & IA
     # =========================================================
     def _montar_contas(self):
-        esq = self._cartao(self.aba_contas, side="left", fill="both", expand=True, padx=(0, 8), pady=8)
+        cartao = self._cartao(self.aba_contas, side="left", fill="both", expand=True, padx=(0, 8), pady=8)
+        self.can_contas, esq = self._lista_rolavel(cartao, bg=CARTAO)   # rola com a barra ou a rodinha
+        esq.configure(padx=0, pady=0)
         dir_ = tk.Frame(self.aba_contas, bg=FUNDO, width=360)
         dir_.pack(side="left", fill="both", pady=8)
         dir_.pack_propagate(False)

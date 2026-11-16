@@ -423,9 +423,116 @@ def faixa_neon(pergunta, destaque, canal):
     return faixa
 
 
+def faixa_plantao(pergunta, destaque, canal):
+    """Plantão de notícia: barra reta na cor do estilo, etiqueta 'URGENTE' piscando em cima e a
+    tarja branca embaixo com o nome do canal (como no jornal da TV)."""
+    from PIL import Image, ImageDraw
+    fnt, linhas, alt_linha, larg = _texto_layout(pergunta, 900, 112)
+    fw, fh = int(min(1060, max(820, larg + 120))), int(alt_linha * len(linhas) + 70)
+    W, H = cortes.LARGURA, fh + 190
+    x0, y0 = (W - fw) // 2, 70
+    x1, y1 = x0 + fw, y0 + fh
+    mascara = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(mascara).rectangle([x0, y0, x1, y1 + 58], fill=255)
+    faixa = _sombra_de(mascara, (0, 12), 0.6, 14)
+    faixa.paste(_papel_colorido(W, H, y0, fh, 10).convert("RGBA"), (0, 0),
+                _retangulo(W, H, x0, y0, x1, y1))
+    d = ImageDraw.Draw(faixa)
+    d.rectangle([x0, y0, x1, y0 + 7], fill=cortes.FAIXA_LINHA_COR)          # filete de cima
+    # tarja de baixo (branca) com o canal
+    d.rectangle([x0, y1, x1, y1 + 58], fill=(245, 245, 245, 255))
+    if canal and cortes.MOSTRAR_SELO_CANAL:
+        fs = fonte(32)
+        d.rectangle([x0, y1, x0 + 58, y1 + 58], fill=(220, 20, 20, 255))
+        d.ellipse([x0 + 19, y1 + 19, x0 + 39, y1 + 39], fill=(255, 255, 255, 255))
+        d.text((x0 + 76, y1 + 11), canal.upper()[:40], font=fs, fill=(20, 20, 20))
+    # etiqueta URGENTE
+    fe = _fonte_rasgada(46)
+    txt = "URGENTE"
+    tw = d.textlength(txt, font=fe)
+    d.rectangle([x0 + 24, y0 - 52, x0 + 24 + tw + 44, y0 + 4], fill=(220, 20, 20, 255))
+    d.text((x0 + 46, y0 - 50), txt, font=fe, fill=(255, 255, 255))
+    _texto_desenhar(faixa, fnt, linhas, alt_linha, destaque, y0 + (fh - alt_linha * len(linhas)) // 2 + 2)
+    return faixa
+
+
+def _retangulo(W, H, x0, y0, x1, y1):
+    from PIL import Image, ImageDraw
+    m = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(m).rectangle([x0, y0, x1, y1], fill=255)
+    return m
+
+
+def faixa_explosao(pergunta, destaque, canal):
+    """Explosão de HQ: estrela de pontas irregulares na cor do estilo, contorno preto grosso e
+    sombra chapada (sem desfoque), como um 'POW!' de quadrinho."""
+    import math
+    import random
+    from PIL import Image, ImageDraw
+    rnd = random.Random("pow" + pergunta)
+    fnt, linhas, alt_linha, larg = _texto_layout(pergunta, 760, 104)
+    rx = min(470, max(400, larg / 2 + 120))
+    ry = alt_linha * len(linhas) / 2 + 95
+    W, H = cortes.LARGURA, int(ry * 2 + 120)
+    cx, cy = W / 2, H / 2
+    pontas = 22
+    pts = []
+    for i in range(pontas * 2):
+        ang = math.pi * i / pontas + rnd.uniform(-0.04, 0.04)
+        k = rnd.uniform(1.0, 1.13) if i % 2 == 0 else rnd.uniform(0.80, 0.86)
+        pts.append((cx + math.cos(ang) * rx * k, cy + math.sin(ang) * ry * k))
+    faixa = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(faixa)
+    d.polygon([(x + 14, y + 16) for x, y in pts], fill=(0, 0, 0, 200))            # sombra chapada
+    d.polygon(pts, fill=(15, 15, 15, 255))                                       # contorno
+    menor = [(cx + (x - cx) * 0.965, cy + (y - cy) * 0.94) for x, y in pts]
+    m = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(m).polygon(menor, fill=255)
+    faixa.paste(_papel_colorido(W, H, int(cy - ry), int(ry * 2), 12).convert("RGBA"), (0, 0), m)
+    for _ in range(26):                                                          # pontinhos de retícula
+        a = rnd.uniform(0, 2 * math.pi)
+        r = rnd.uniform(0.55, 0.75)
+        x, y = cx + math.cos(a) * rx * r, cy + math.sin(a) * ry * r
+        if abs(y - cy) > alt_linha * len(linhas) / 2:
+            d.ellipse([x - 5, y - 5, x + 5, y + 5], fill=(255, 255, 255, 90))
+    _texto_desenhar(faixa, fnt, linhas, alt_linha, destaque, int(cy - alt_linha * len(linhas) / 2) - 4)
+    _selo(faixa, canal, int(cx - rx * 0.55), 6)
+    return faixa.rotate(-3, resample=Image.BICUBIC)
+
+
+def faixa_diagonal(pergunta, destaque, canal):
+    """Diagonal de esporte: faixa inclinada (paralelogramo) com um bloco deslocado na cor da linha
+    por trás e listras de velocidade na ponta."""
+    from PIL import Image, ImageDraw
+    fnt, linhas, alt_linha, larg = _texto_layout(pergunta, 840, 110)
+    fw, fh = int(min(1000, max(760, larg + 160))), int(alt_linha * len(linhas) + 70)
+    W, H = cortes.LARGURA, fh + 170
+    x0, y0 = (W - fw) // 2, 80
+    x1, y1 = x0 + fw, y0 + fh
+    inc = 46                                                                     # inclinação das pontas
+
+    def para(dx, dy):
+        return [(x0 + inc + dx, y0 + dy), (x1 + inc + dx, y0 + dy), (x1 - inc + dx, y1 + dy), (x0 - inc + dx, y1 + dy)]
+    faixa = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(faixa)
+    d.polygon(para(18, 18), fill=cortes.FAIXA_LINHA_COR + (255,))                 # bloco de trás
+    for i in range(3):                                                           # listras de velocidade
+        xs = x0 - inc - 40 - i * 34
+        d.polygon([(xs + inc, y0 + 10), (xs + inc + 18, y0 + 10), (xs - inc + 18, y1 - 10), (xs - inc, y1 - 10)],
+                  fill=cortes.FAIXA_LINHA_COR + (230 - i * 60,))
+    m = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(m).polygon(para(0, 0), fill=255)
+    faixa.paste(_papel_colorido(W, H, y0, fh, 14).convert("RGBA"), (0, 0), m)
+    _texto_desenhar(faixa, fnt, linhas, alt_linha, destaque, y0 + (fh - alt_linha * len(linhas)) // 2 - 4)
+    _selo(faixa, canal, x0 + inc + 20, y0 - 50)
+    return faixa.rotate(3, resample=Image.BICUBIC)
+
+
 FORMATOS_FAIXA = {"Rasgada": "faixa_rasgada", "Pincelada": "faixa_pincelada",
                   "Fita": "faixa_fita", "Adesivo": "faixa_adesivo",
-                  "Balão": "faixa_balao", "Neon": "faixa_neon"}
+                  "Balão": "faixa_balao", "Neon": "faixa_neon",
+                  "Plantão": "faixa_plantao", "Explosão": "faixa_explosao", "Diagonal": "faixa_diagonal"}
+
 
 
 def encaixar_inteira(foto: Path, largura, altura, base_y):

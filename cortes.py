@@ -151,7 +151,7 @@ CONFIG_PADRAO = {
     "legenda_palavras": 3,
     "legenda_cor": "#FFE600",
     "faixa_estilo": "Vermelho clássico",
-    "faixa_formato": "Rasgada",    # "Rasgada", "Pincelada", "Fita", "Adesivo", "Balão", "Neon" ou "Reta"
+    "faixa_formato": "Rasgada",    # "Rasgada", "Pincelada", "Fita", "Adesivo", "Balão", "Neon", "Plantão", "Explosão", "Diagonal" ou "Reta"
     "seguir_rosto": True,          # câmera acompanha o rosto de quem fala
     "tirar_silencios": True,       # corta as pausas longas
     "efeito_gancho": True,         # zoom rápido + "boom" no momento mais forte
