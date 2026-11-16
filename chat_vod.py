@@ -160,8 +160,9 @@ def baixar_twitch(video_id, log=print, limite_seg=240, max_paginas=6000):
 def baixar_youtube(url, pasta: Path, log=print):
     """Chat de uma live antiga do YouTube (o yt-dlp baixa como 'legenda' live_chat)."""
     import yt_dlp
-    opcoes = {"skip_download": True, "writesubtitles": True, "subtitleslangs": ["live_chat"],
-              "outtmpl": str(Path(pasta) / "chat.%(ext)s"), "quiet": True, "no_warnings": True}
+    import baixador
+    opcoes = baixador.opcoes_ytdlp(skip_download=True, writesubtitles=True, subtitleslangs=["live_chat"],
+                                   outtmpl=str(Path(pasta) / "chat.%(ext)s"))
     with yt_dlp.YoutubeDL(opcoes) as y:
         y.download([url])
     arq = next(Path(pasta).glob("chat*.live_chat.json"), None)

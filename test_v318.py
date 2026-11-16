@@ -41,6 +41,12 @@ class ChipDeVideo(unittest.TestCase):
         self.assertEqual(novo.count("-hwaccel"), 1)
         self.assertEqual(cortes._sem_hwaccel(novo), cmd)
 
+    def test_emendas_ficam_no_processador(self):
+        cmd = ["ffmpeg", "-y", "-i", "a.mp4", "-filter_complex", "[0:v]split[a][b];[a][b]concat=n=2[v]",
+               "-c:v", "h264_qsv", "s.mp4"]
+        with patch.object(cortes, "_decodificar_hw", True):
+            self.assertNotIn("-hwaccel", cortes._com_decodificador_hw(cmd))
+
     def test_sem_encoder_de_hardware_nao_mexe(self):
         cmd = ["ffmpeg", "-i", "a.mp4", "-c:v", "libx264", "s.mp4"]
         self.assertEqual(cortes._com_decodificador_hw(cmd), cmd)
@@ -51,9 +57,9 @@ class ChipDeVideo(unittest.TestCase):
         def executar(cmd, cwd=None, progresso=None):
             chamadas.append(list(cmd))
             return subprocess.CompletedProcess(cmd, 1 if "-hwaccel" in cmd else 0, "", "erro")
-        with patch.object(cortes, "_executar", side_effect=executar), patch.object(cortes, "_decodificar_hw", True):
+        with patch.object(cortes, "_executar", side_effect=executar), patch.object(cortes, "_decodificar_hw", True),              patch.object(cortes, "_falhas_hw_decod", [0]):
             cortes.rodar(["ffmpeg", "-y", "-i", "a.mp4", "-c:v", "h264_qsv", "-global_quality", "19", "s.mp4"])
-            self.assertFalse(cortes._decodificar_hw)
+            self.assertTrue(cortes._decodificar_hw)          # 1 falha: só aquele comando volta pro processador
         self.assertIn("-hwaccel", chamadas[0])
         self.assertNotIn("-hwaccel", chamadas[1])
         self.assertIn("h264_qsv", chamadas[1])                 # o encoder do chip continua

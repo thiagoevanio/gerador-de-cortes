@@ -147,8 +147,8 @@ def salvar_estado(estado):
 
 def ytdlp_info(url, **extra):
     import yt_dlp
-    opts = {"quiet": True, "no_warnings": True, "skip_download": True}
-    opts.update(extra)
+    import baixador
+    opts = baixador.opcoes_ytdlp(skip_download=True, **extra)
     with yt_dlp.YoutubeDL(opts) as y:
         return y.extract_info(url, download=False)
 
@@ -1478,6 +1478,8 @@ def main():
     agendados: list[dict] = []
     if not iniciar_painel():
         return
+    import baixador                     # YouTube muda toda semana: yt-dlp em dia (a cada 3 dias, em segundo plano)
+    threading.Thread(target=baixador.manter_atualizado, kwargs={"log": log}, daemon=True).start()
     global FILA_ATIVA
     fila = FilaTarefas(BASE / "fila_tarefas.sqlite3")
     FILA_ATIVA = fila

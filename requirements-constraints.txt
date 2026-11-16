@@ -1,5 +1,6 @@
 # Versões diretas presentes no ambiente de validação em 02/11/2026.
-yt-dlp==2026.10.26
+yt-dlp>=2026.10.26
+yt-dlp-ejs>=0.8.0
 streamlink==8.6.3
 faster-whisper==1.2.1
 numpy==2.5.4

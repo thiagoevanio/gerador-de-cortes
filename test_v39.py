@@ -20,7 +20,9 @@ class Download(unittest.TestCase):
     def setUp(self):
         cortes.aplicar_config(cortes.carregar_config())
 
-    def _falso_ytdlp(self, falhas, erro="ffmpeg exited with code 3436169992"):
+    def _falso(self, falhas, erro="ffmpeg exited with code 3436169992", info_erro=None):
+        """yt-dlp falso: extract_info dá o título; o download tradicional (processo com limite de
+        tempo, baixador.trecho_com_limite) falha 'falhas' vezes antes de dar certo."""
         chamadas = []
 
         class YDL:
@@ -33,38 +35,47 @@ class Download(unittest.TestCase):
             def __exit__(self, *a):
                 return False
 
-            def extract_info(self, url, download=True):
-                chamadas.append(self.opcoes)
-                if len(chamadas) <= falhas:
-                    Path(self.opcoes["outtmpl"].replace("%(ext)s", "mp4.part")).write_bytes(b"x")
-                    raise RuntimeError(erro)
-                Path(self.opcoes["outtmpl"].replace("%(ext)s", "mp4")).write_bytes(b"0" * 20_000)
+            def extract_info(self, url, download=False):
+                if info_erro:
+                    chamadas.append("info")
+                    raise RuntimeError(info_erro)
                 return {"title": "T", "uploader": "Canal"}
+
+        def tradicional(url, ini, fim, pasta, formato, ordem, limite_s, log=print):
+            chamadas.append(formato)
+            if len(chamadas) <= falhas:
+                (pasta / "original.mp4.part").write_bytes(b"x")
+                raise RuntimeError(erro)
+            arq = pasta / "original.mp4"
+            arq.write_bytes(b"0" * 20_000)
+            return arq
 
         mod = types.ModuleType("yt_dlp")
         mod.YoutubeDL = YDL
-        utils = types.ModuleType("yt_dlp.utils")
-        utils.download_range_func = lambda *a: None
-        return chamadas, {"yt_dlp": mod, "yt_dlp.utils": utils}
+        return chamadas, {"yt_dlp": mod}, tradicional
 
     def test_tenta_de_novo_e_usa_formato_simples(self):
-        chamadas, mods = self._falso_ytdlp(falhas=2)
+        import baixador
+        chamadas, mods, tradicional = self._falso(falhas=2)
         with tempfile.TemporaryDirectory() as d, mock.patch.dict(sys.modules, mods), \
+                mock.patch.object(baixador, "trecho_com_limite", side_effect=tradicional), \
                 mock.patch("time.sleep"), mock.patch.object(cortes, "duracao_video", return_value=30.0):
             arq, meta = cortes.baixar_trecho("https://x", 10, 40, Path(d))
             self.assertEqual(arq.name, "original.mp4")
             self.assertEqual(meta["canal"], "Canal")
             self.assertFalse(list(Path(d).glob("*.part")))
         self.assertEqual(len(chamadas), 3)
-        self.assertEqual(chamadas[0]["format"], "bv*+ba/b")
-        self.assertTrue(chamadas[2]["format"].startswith("b[ext=mp4]"))   # plano B: arquivo único
+        self.assertEqual(chamadas[0], "bv*+ba/b")
+        self.assertTrue(chamadas[2].startswith("b[ext=mp4]"))   # plano B: arquivo único
 
     def test_erro_definitivo_nao_insiste(self):
-        chamadas, mods = self._falso_ytdlp(falhas=9, erro="ERROR: Private video")
-        with tempfile.TemporaryDirectory() as d, mock.patch.dict(sys.modules, mods), mock.patch("time.sleep"):
+        import baixador
+        chamadas, mods, tradicional = self._falso(falhas=9, info_erro="ERROR: Private video")
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(sys.modules, mods), \
+                mock.patch.object(baixador, "trecho_com_limite", side_effect=tradicional), mock.patch("time.sleep"):
             with self.assertRaises(RuntimeError):
                 cortes.baixar_trecho("https://x", 10, 40, Path(d))
-        self.assertEqual(len(chamadas), 1)
+        self.assertEqual(chamadas, ["info"])
 
 
 class Gancho(unittest.TestCase):

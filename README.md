@@ -4,7 +4,7 @@
 com inteligência artificial, edição de nível profissional e aprendizado a partir dos resultados do seu
 canal.** Roda no seu PC (Windows), usando a sua própria assinatura de IA.
 
-![versão](https://img.shields.io/badge/versão-3.18-e3262e)
+![versão](https://img.shields.io/badge/versão-3.19-e3262e)
 ![python](https://img.shields.io/badge/python-3.12-3776ab)
 ![plataforma](https://img.shields.io/badge/plataforma-Windows%2010%2F11-0078d4)
 ![testes](https://img.shields.io/badge/testes-167%20passando-25c26e)

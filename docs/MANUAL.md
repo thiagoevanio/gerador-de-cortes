@@ -37,6 +37,8 @@ Copiou a pasta de um PC que já tinha o programa? Sem problema: o doutor percebe
 
 Depois, abra o programa, vá em **🔑 Contas & IA** e clique em **Conectar conta** na IA que for usar. Esse login só precisa ser feito uma vez, por você.
 
+**Downloads do YouTube:** o programa baixa só os pedaços do trecho (segundos, não minutos) e resolve o desafio que o YouTube exige com o **Node.js** (o instalador e o Examinar o PC instalam se faltar). O yt-dlp se atualiza sozinho a cada 3 dias.
+
 **Velocidade:** o programa usa o chip de vídeo do PC (Intel Quick Sync, Nvidia ou AMD) pra decodificar e codificar o vídeo, lê os rostos percorrendo o vídeo em sequência e mostra o andamento da montagem com o tempo que falta. Num notebook i5 de 2 núcleos, um corte de 45 s caiu de ~3 min para ~1 min 40 s.
 
 ## Usar

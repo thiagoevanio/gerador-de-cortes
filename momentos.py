@@ -24,7 +24,8 @@ N_CANDIDATOS = 8
 
 def _info_url(url):
     import yt_dlp
-    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True}) as y:
+    import baixador
+    with yt_dlp.YoutubeDL(baixador.opcoes_ytdlp(skip_download=True)) as y:
         return y.extract_info(url, download=False)
 
 
@@ -57,8 +58,9 @@ def _baixar_audio(fonte, pasta: Path, log):
     if re.match(r"^https?://", str(fonte)):
         import yt_dlp
         log("   baixando só o áudio do vídeo...")
-        with yt_dlp.YoutubeDL({"format": "bestaudio/best", "quiet": True, "no_warnings": True,
-                               "outtmpl": str(pasta / "audio.%(ext)s")}) as y:
+        import baixador          # pedidos de 10 MB + desafio do YouTube resolvido: não estrangula
+        with yt_dlp.YoutubeDL(baixador.opcoes_ytdlp(format="bestaudio[ext=m4a]/bestaudio/best",
+                                                    outtmpl=str(pasta / "audio.%(ext)s"))) as y:
             y.download([fonte])
         origem = next(pasta.glob("audio.*"))
     else:

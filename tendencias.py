@@ -99,7 +99,8 @@ def assuntos_recentes(n=8, idade_max_h=8):
 def _ydl(url, flat=True, n=15):
     import yt_dlp
     import cortes
-    op = {"quiet": True, "no_warnings": True, "skip_download": True, "logger": cortes.LoggerMudo()}
+    import baixador
+    op = baixador.opcoes_ytdlp(skip_download=True, logger=cortes.LoggerMudo())
     if flat:
         op.update(extract_flat="in_playlist", playlistend=n)
     with yt_dlp.YoutubeDL(op) as y:

@@ -2,6 +2,24 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.19 — Downloads do YouTube que não travam
+
+O problema: cortes de vídeos do YouTube demoravam demais ou não terminavam. Medido: o download do
+trecho (45 s de um vídeo de 18 min) ficava parado por **mais de 10 minutos**.
+- **Causa 1 — desafio do YouTube:** o YouTube passou a exigir um desafio em JavaScript ("n challenge").
+  Sem resolver, ele estrangula a velocidade. Agora o yt-dlp usa o pacote **yt-dlp-ejs** com o **Node.js**
+  (ou Deno) em todos os lugares (`baixador.opcoes_ytdlp`). O Examinar o PC confere o Node e instala se faltar.
+- **Causa 2 — download do trecho:** o jeito antigo abria o vídeo inteiro (378 MB) numa conexão só.
+  Agora o programa lê o índice do arquivo (sidx) e baixa **só os pedaços do trecho**, em pedidos de até
+  10 MB: **4 s** em vez de travar. O corte inteiro do YouTube, do link ao vídeo pronto: ~1 min 45 s.
+- **Nada fica travado:** se o jeito rápido não servir (outro site, formato sem índice), o jeito
+  tradicional roda num processo separado **com limite de tempo** e tenta de novo.
+- **yt-dlp sempre em dia:** a cada 3 dias o programa atualiza o yt-dlp e o yt-dlp-ejs sozinho, em segundo
+  plano (o YouTube muda toda semana). A versão deixou de ficar presa.
+- **Chip de vídeo:** os passos que duplicam e emendam o vídeo (gancho, pausas) decodificam no processador
+  (a memória fixa do chip da Intel enchia); se o chip falhar num comando, só aquele volta pro processador.
+- O áudio do vídeo inteiro (pra achar os momentos) também baixa em pedidos de 10 MB.
+
 ## 3.18 — Desempenho: cortes ~45% mais rápidos
 
 Medido num i5-7200U (2 núcleos, Intel HD 620), mesmo corte de 45 s: **186 s → 100 s**.

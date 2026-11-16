@@ -466,6 +466,7 @@ def nome_seguro(texto: str, limite=50) -> str:
 _DECODER_HW = {"h264_qsv": "qsv", "h264_nvenc": "cuda", "h264_amf": "d3d11va"}
 _EXT_VIDEO = {".mp4", ".mkv", ".ts", ".flv", ".webm", ".mov", ".m4v", ".avi", ".m3u8"}
 _decodificar_hw = True
+_falhas_hw_decod = [0]
 
 
 def _com_decodificador_hw(cmd):
@@ -475,6 +476,14 @@ def _com_decodificador_hw(cmd):
         return cmd
     enc = next((cmd[i + 1] for i, x in enumerate(cmd[:-1]) if x == "-c:v" and cmd[i + 1] in _DECODER_HW), None)
     if not enc:
+        return cmd
+    # montagens com vários filtros (-filter_complex) e filtros que guardam quadros (duplicar, emendar,
+    # selecionar) estouram a memória fixa do chip ("Failed to allocate a qsv frame from a fixed pool"):
+    # esses decodificam no processador. O chip fica com o recorte e os intermediários simples.
+    if "-filter_complex" in cmd:
+        return cmd
+    filtros = " ".join(str(cmd[i + 1]) for i, x in enumerate(cmd[:-1]) if x in ("-vf", "-af"))
+    if re.search(r"\b(split|concat|select|reverse|loop|tpad|xfade)\b", filtros):
         return cmd
     novo = []
     for i, x in enumerate(cmd):
@@ -556,7 +565,9 @@ def rodar(cmd, cwd=None, progresso=None):
     if r.returncode != 0 and "-hwaccel" in cmd:
         # algum vídeo que o chip não sabe decodificar (ex.: AV1 num Intel antigo): volta pro processador
         print("   ⚠ o chip de vídeo não decodificou esse arquivo — decodificando no processador.")
-        _decodificar_hw = False
+        _falhas_hw_decod[0] += 1
+        if _falhas_hw_decod[0] >= 3:           # falhou várias vezes: desliga pro resto da sessão
+            _decodificar_hw = False
         cmd = _sem_hwaccel(cmd)
         r = _executar(cmd, cwd, progresso)
     if r.returncode != 0:
@@ -673,45 +684,47 @@ _ERROS_DEFINITIVOS = ("private video", "video unavailable", "vídeo indisponíve
 
 
 def baixar_trecho(url, inicio, fim, pasta: Path, tentativas=3):
-    """Baixa só o trecho. Se o yt-dlp/ffmpeg falhar no meio (instabilidade comum), tenta de novo;
-    na última tentativa usa um formato de arquivo único (sem juntar vídeo+áudio), que falha menos."""
+    """Baixa só o trecho. No YouTube, o jeito rápido (baixador.trecho_rapido) baixa só os pedaços do
+    trecho em segundos; se não der, o jeito tradicional roda com limite de tempo e tenta de novo
+    (na última vez com um formato de arquivo único, que falha menos). Nada fica travado pra sempre."""
     import time
     import yt_dlp
-    from yt_dlp.utils import download_range_func
+    import baixador
 
     log(f"Baixando só o trecho {fmt_tempo(inicio)} → {fmt_tempo(fim)} ...")
-    ultimo_erro = None
+    res = 1080 if BAIXAR_1080 else 720
+    eh_youtube = bool(re.search(r"(youtube\.com|youtu\.be)/", str(url)))
+    ultimo_erro, info = None, None
     for n in range(1, tentativas + 1):
         plano_b = n == tentativas and tentativas > 1
-        for velho in pasta.glob("original.*"):           # restos de uma tentativa que caiu no meio
+        for velho in [*pasta.glob("original.*"), *pasta.glob("parte_*")]:   # restos de uma tentativa
             try:
                 velho.unlink()
             except OSError:
                 pass
-        res = 1080 if BAIXAR_1080 else 720
-        opcoes = {
-            # até 1080p (ou 720p), preferindo H.264: AV1/VP9 pesam muito pra decodificar em PC fraco
-            "format": f"b[ext=mp4][height<={res}]/b[height<={res}]/b" if plano_b else "bv*+ba/b",
-            "format_sort": [f"res:{res}", "vcodec:h264", "acodec:m4a"],
-            "merge_output_format": "mp4",
-            "outtmpl": str(pasta / "original.%(ext)s"),
-            "download_ranges": download_range_func(None, [(inicio, fim)]),
-            "force_keyframes_at_cuts": True,
-            "retries": 5, "fragment_retries": 5,
-            "quiet": True, "no_warnings": True,
-        }
         try:
-            with yt_dlp.YoutubeDL(opcoes) as ydl:
-                info = ydl.extract_info(url, download=True)
-            arquivos = [a for a in sorted(pasta.glob("original.*"))
-                        if a.suffix.lower() not in (".part", ".ytdl") and a.stat().st_size > 10_000]
-            if not arquivos or duracao_video(arquivos[0]) < 0.5:
+            if eh_youtube and n == 1:
+                with yt_dlp.YoutubeDL(baixador.opcoes_ytdlp(format=baixador.formato_trecho(res))) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                arquivo = baixador.trecho_rapido(info, inicio, fim, pasta, log=print)
+            else:
+                if info is None:
+                    with yt_dlp.YoutubeDL(baixador.opcoes_ytdlp()) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                formato = f"b[ext=mp4][height<={res}]/b[height<={res}]/b" if plano_b else "bv*+ba/b"
+                arquivo = baixador.trecho_com_limite(
+                    url, inicio, fim, pasta, formato, [f"res:{res}", "vcodec:h264", "acodec:m4a"],
+                    limite_s=max(300, int((fim - inicio) * 8)), log=print)
+            if duracao_video(arquivo) < 0.5:
                 raise RuntimeError("o arquivo baixado saiu vazio")
         except Exception as e:                            # noqa: BLE001 - qualquer falha do yt-dlp/ffmpeg
             ultimo_erro = e
             texto = str(e).lower()
             if any(m in texto for m in _ERROS_DEFINITIVOS) or n == tentativas:
                 break
+            if eh_youtube and n == 1:
+                print(f"   ⚠ o download rápido não deu ({str(e).strip()[:120]}) — usando o jeito tradicional...")
+                continue
             espera = 4 * n
             print(f"   ⚠ download falhou ({str(e).strip()[:120]}) — tentando de novo em {espera}s "
                   f"({n + 1}/{tentativas}{', formato mais simples' if n + 1 == tentativas else ''})...")
@@ -719,10 +732,10 @@ def baixar_trecho(url, inicio, fim, pasta: Path, tentativas=3):
             continue
         if n > 1:
             print(f"   download OK na tentativa {n}.")
-        meta = {"titulo": info.get("title", ""),
-                "canal": info.get("uploader") or info.get("channel") or "",
-                "thumbnail": info.get("thumbnail")}
-        return arquivos[0], meta
+        meta = {"titulo": (info or {}).get("title", ""),
+                "canal": (info or {}).get("uploader") or (info or {}).get("channel") or "",
+                "thumbnail": (info or {}).get("thumbnail")}
+        return arquivo, meta
     raise RuntimeError(f"Não consegui baixar o vídeo: {str(ultimo_erro).strip()[:300]}")
 
 
@@ -960,8 +973,9 @@ def contar_parecidos(titulo, canal=""):
     termos = " ".join(([canal] if canal else []) + sorted(chave, key=len, reverse=True)[:4])
     url = f"https://www.youtube.com/results?search_query={quote(termos)}&sp=EgIIAw%253D%253D"
     try:
-        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "extract_flat": "in_playlist",
-                               "playlistend": 15, "skip_download": True, "logger": LoggerMudo()}) as y:
+        import baixador
+        with yt_dlp.YoutubeDL(baixador.opcoes_ytdlp(extract_flat="in_playlist", playlistend=15,
+                                                    skip_download=True, logger=LoggerMudo())) as y:
             info = y.extract_info(url, download=False)
     except Exception:
         return None

@@ -48,12 +48,12 @@ FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 ESPACO_MIN_GB = 3
 
 # (nome do pacote no pip, módulo que o programa importa)
-BIBLIOTECAS = [("yt-dlp", "yt_dlp"), ("faster-whisper", "faster_whisper"),
+BIBLIOTECAS = [("yt-dlp", "yt_dlp"), ("yt-dlp-ejs", "yt_dlp_ejs"), ("faster-whisper", "faster_whisper"),
                ("Pillow", "PIL"), ("streamlink", "streamlink"), ("numpy", "numpy"),
                ("opencv", "cv2"), ("google-api", "googleapiclient"),
                ("google-auth", "google_auth_oauthlib"), ("openpyxl", "openpyxl"),
                ("qrcode", "qrcode")]
-PIP_NOMES = ["yt-dlp", "streamlink", "faster-whisper", "numpy", "Pillow", "opencv-python-headless",
+PIP_NOMES = ["yt-dlp", "yt-dlp-ejs", "streamlink", "faster-whisper", "numpy", "Pillow", "opencv-python-headless",
              "google-api-python-client", "google-auth-oauthlib", "openpyxl", "qrcode"]
 
 
@@ -400,6 +400,10 @@ def examinar():
         item("path", "PATH do Windows", no_path or sys.platform != "win32", "ok" if no_path else
              f"{pasta} fora do PATH", "ajustar_path")
 
+    js = shutil.which("deno") or shutil.which("node") or next(
+        (p for p in (r"C:\Program Files\nodejs\node.exe",) if os.path.exists(p)), None)
+    item("js", "Node.js (o YouTube exige pra baixar rápido)", bool(js) or sys.platform != "win32",
+         js or "faltando — sem ele o YouTube estrangula os downloads", "instalar_node")
     item("winget", "winget (instalador do Windows)", None, "disponível" if tem_winget() else
          "não tem — o doutor baixa direto dos sites oficiais")
     for nome, exe in (("Claude", "claude"), ("Git", "git")):
@@ -547,6 +551,13 @@ def conserto_ajustar_path(log):
     return adicionar_ao_path(pastas, log)
 
 
+def conserto_instalar_node(log):
+    log("Instalando o Node.js (o YouTube exige um motor JavaScript pra liberar a velocidade)...")
+    ok = winget("OpenJS.NodeJS.LTS", log)
+    path_do_processo()
+    return ok and bool(shutil.which("node") or os.path.exists(r"C:\Program Files\nodejs\node.exe"))
+
+
 CONSERTOS = {
     "instalar_python": (conserto_instalar_python, "instala o Python 3.12 (winget ou python.org, assinatura conferida)"),
     "criar_venv": (conserto_criar_venv, "recria o ambiente .venv do programa com o Python 3.12"),
@@ -557,6 +568,7 @@ CONSERTOS = {
     "instalar_vcredist": (conserto_instalar_vcredist, "instala o Microsoft Visual C++ 2015-2022 x64"),
     "instalar_ffmpeg": (conserto_instalar_ffmpeg, "baixa o ffmpeg completo para a pasta do programa"),
     "ajustar_path": (conserto_ajustar_path, "coloca ffmpeg e ferramentas no PATH do usuário"),
+    "instalar_node": (conserto_instalar_node, "instala o Node.js LTS (resolve o desafio do YouTube nos downloads)"),
 }
 
 # erros conhecidos → consertos (sem IA). (padrão, consertos, explicação para o usuário)

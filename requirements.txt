@@ -1,5 +1,6 @@
 -c requirements-constraints.txt
 yt-dlp
+yt-dlp-ejs
 streamlink
 faster-whisper
 numpy

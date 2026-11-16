@@ -2285,6 +2285,9 @@ class App(tk.Tk):
         self.b_fraco = self._botao(ferr, "", self._alternar_pc_fraco)
         self.b_fraco.pack(side="left", fill="x", expand=True, padx=(6, 0))
         self._mostrar_pc_fraco()
+        import baixador                 # yt-dlp em dia (a cada 3 dias, em segundo plano)
+        threading.Thread(target=baixador.manter_atualizado,
+                         kwargs={"log": lambda t: self._log(self.log_contas, t)}, daemon=True).start()
 
         def linha(titulo, chave, botoes):
             f = tk.Frame(esq, bg=CARTAO)
