@@ -160,6 +160,7 @@ CONFIG_PADRAO = {
     "tirar_vicios": True,          # corta "é…", "tipo,", "né?", "hum"
     "audio_padrao": True,          # volume no padrão das plataformas + voz mais clara
     "baixar_1080": True,           # baixa em 1080p (mais nítido) em vez de 720p
+    "fps_auto": True,              # fonte em 60 fps sai em 60 fps (gameplay fluido; 30 no Modo PC fraco)
     "marca": "",                   # seu @ no canto do vídeo (marca d'água)
     "nota_minima": 0,              # 0 = não descarta; ex: 6 descarta cortes com nota abaixo de 6
     "nota_minima_automatico": 6,   # cortes que o robô faz sozinho (sem você pedir): descarta abaixo disso
@@ -437,6 +438,7 @@ def log(msg):
 
 
 from desempenho import etapas_do_log, registrar_tempos as _registrar_tempos  # noqa: E402
+from baixador import baixar_trecho  # noqa: E402 - mudou pro baixador.py na 3.21
 
 
 def registrar_tempos(marcas, saida=None, duracao=None, arquivo=None):
@@ -572,20 +574,29 @@ def rodar(cmd, cwd=None, progresso=None):
         r = _executar(cmd, cwd, progresso)
     if r.returncode != 0:
         # acelerador de vídeo (GPU) falhou nesse arquivo? refaz no processador e não tenta mais a GPU
-        hw = next((i for i, x in enumerate(cmd[:-1]) if x == "-c:v" and cmd[i + 1] in _TAMANHO_ARGS_HW), None)
+        hw = next((i for i, x in enumerate(cmd[:-1]) if x == "-c:v" and cmd[i + 1] in _ENCODERS_HW), None)
         if hw is not None:
             global _encoder_h264_cache
             print(f"   ⚠ o acelerador de vídeo ({cmd[hw + 1]}) falhou — refazendo no processador.")
             _encoder_h264_cache = "libx264"
-            fim = hw + _TAMANHO_ARGS_HW[cmd[hw + 1]]
-            novo = cmd[:hw] + ["-c:v", "libx264", "-preset", "veryfast", "-crf", "19"] + cmd[fim:]
+            novo = (cmd[:hw] + ["-c:v", "libx264", "-preset", "veryfast", "-crf", "19"]
+                    + cmd[_fim_args_encoder(cmd, hw):])
             return _rodar_direto(novo, cwd)
         print(r.stderr[-3000:])
         raise RuntimeError(f"Erro ao rodar: {cmd[0]}")
     return r
 
 
-_TAMANHO_ARGS_HW = {"h264_nvenc": 6, "h264_qsv": 4, "h264_amf": 8}   # quantos itens tem cada "-c:v ..."
+_ENCODERS_HW = ("h264_nvenc", "h264_qsv", "h264_amf")
+_FLAGS_ENCODER = {"-preset", "-cq", "-global_quality", "-look_ahead", "-rc", "-qp_i", "-qp_p", "-crf"}
+
+
+def _fim_args_encoder(cmd, hw):
+    """Onde terminam os argumentos do encoder que começa em cmd[hw] ('-c:v nome -flag valor ...')."""
+    i = hw + 2
+    while i < len(cmd) - 1 and cmd[i] in _FLAGS_ENCODER:
+        i += 2
+    return i
 
 
 def _rodar_direto(cmd, cwd=None):
@@ -644,19 +655,23 @@ def detectar_encoder_h264() -> str:
     return _encoder_h264_cache
 
 
-def args_encoder_video(intermediario=False, crf_padrao=19):
-    '''Parâmetros do encoder de vídeo: usa GPU se disponível e habilitado, ou libx264 mais nítido.'''
+def args_encoder_video(intermediario=False, crf_padrao=17):
+    '''Encoder de vídeo: GPU se disponível e habilitado, senão libx264. Intermediário: quase sem
+    perda (ainda será recomprimido). Final: mais bitrate (as plataformas recomprimem ao receber).'''
     usar_gpu = bool(carregar_config().get("usar_gpu_encoder", True))
     enc = detectar_encoder_h264() if usar_gpu else "libx264"
     if intermediario:
-        # arquivo de passagem: qualidade alta. No chip de vídeo sai ~2x mais rápido e 3x menor
-        # que o libx264 ultrafast (que fica pro PC sem acelerador)
         if enc == "libx264":
             return ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "16"]
-        crf_padrao = 17
+        crf_padrao = 15
     if enc == "h264_nvenc":
         return ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", str(crf_padrao)]
     if enc == "h264_qsv":
+        import desempenho
+        if not intermediario and desempenho.suporta_look_ahead():
+            # LA-ICQ 19 no final: ~10 Mbps num 1080x1920 (o dobro do ICQ puro, mesma velocidade)
+            return ["-c:v", "h264_qsv", "-global_quality", "19", "-look_ahead", "1"]
+        crf_padrao = 15 if not intermediario else crf_padrao
         return ["-c:v", "h264_qsv", "-global_quality", str(crf_padrao)]
     if enc == "h264_amf":
         return ["-c:v", "h264_amf", "-rc", "cqp", "-qp_i", str(crf_padrao), "-qp_p", str(crf_padrao)]
@@ -678,67 +693,6 @@ def duracao_video(arquivo: Path) -> float:
 # ============================================================
 # 1. Obter o trecho
 # ============================================================
-_ERROS_DEFINITIVOS = ("private video", "video unavailable", "vídeo indisponível", "sign in to confirm your age",
-                      "members-only", "this live event will begin", "copyright", "has been removed",
-                      "is not available in your country", "unsupported url")
-
-
-def baixar_trecho(url, inicio, fim, pasta: Path, tentativas=3):
-    """Baixa só o trecho. No YouTube, o jeito rápido (baixador.trecho_rapido) baixa só os pedaços do
-    trecho em segundos; se não der, o jeito tradicional roda com limite de tempo e tenta de novo
-    (na última vez com um formato de arquivo único, que falha menos). Nada fica travado pra sempre."""
-    import time
-    import yt_dlp
-    import baixador
-
-    log(f"Baixando só o trecho {fmt_tempo(inicio)} → {fmt_tempo(fim)} ...")
-    res = 1080 if BAIXAR_1080 else 720
-    eh_youtube = bool(re.search(r"(youtube\.com|youtu\.be)/", str(url)))
-    ultimo_erro, info = None, None
-    for n in range(1, tentativas + 1):
-        plano_b = n == tentativas and tentativas > 1
-        for velho in [*pasta.glob("original.*"), *pasta.glob("parte_*")]:   # restos de uma tentativa
-            try:
-                velho.unlink()
-            except OSError:
-                pass
-        try:
-            if eh_youtube and n == 1:
-                with yt_dlp.YoutubeDL(baixador.opcoes_ytdlp(format=baixador.formato_trecho(res))) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                arquivo = baixador.trecho_rapido(info, inicio, fim, pasta, log=print)
-            else:
-                if info is None:
-                    with yt_dlp.YoutubeDL(baixador.opcoes_ytdlp()) as ydl:
-                        info = ydl.extract_info(url, download=False)
-                formato = f"b[ext=mp4][height<={res}]/b[height<={res}]/b" if plano_b else "bv*+ba/b"
-                arquivo = baixador.trecho_com_limite(
-                    url, inicio, fim, pasta, formato, [f"res:{res}", "vcodec:h264", "acodec:m4a"],
-                    limite_s=max(300, int((fim - inicio) * 8)), log=print)
-            if duracao_video(arquivo) < 0.5:
-                raise RuntimeError("o arquivo baixado saiu vazio")
-        except Exception as e:                            # noqa: BLE001 - qualquer falha do yt-dlp/ffmpeg
-            ultimo_erro = e
-            texto = str(e).lower()
-            if any(m in texto for m in _ERROS_DEFINITIVOS) or n == tentativas:
-                break
-            if eh_youtube and n == 1:
-                print(f"   ⚠ o download rápido não deu ({str(e).strip()[:120]}) — usando o jeito tradicional...")
-                continue
-            espera = 4 * n
-            print(f"   ⚠ download falhou ({str(e).strip()[:120]}) — tentando de novo em {espera}s "
-                  f"({n + 1}/{tentativas}{', formato mais simples' if n + 1 == tentativas else ''})...")
-            time.sleep(espera)
-            continue
-        if n > 1:
-            print(f"   download OK na tentativa {n}.")
-        meta = {"titulo": (info or {}).get("title", ""),
-                "canal": (info or {}).get("uploader") or (info or {}).get("channel") or "",
-                "thumbnail": (info or {}).get("thumbnail")}
-        return arquivo, meta
-    raise RuntimeError(f"Não consegui baixar o vídeo: {str(ultimo_erro).strip()[:300]}")
-
-
 def recortar_local(arquivo, inicio, fim, pasta: Path, meta=None):
     log("Recortando o trecho do arquivo...")
     saida = pasta / "original.mp4"
@@ -749,7 +703,7 @@ def recortar_local(arquivo, inicio, fim, pasta: Path, meta=None):
         fim = min(fim, total)
     if fim <= inicio:
         raise ValueError('Não há vídeo disponível no intervalo solicitado.')
-    cmd = ["-map", "0:v:0", "-map", "0:a:0?", *args_encoder_video(crf_padrao=20),
+    cmd = ["-map", "0:v:0", "-map", "0:a:0?", *args_encoder_video(intermediario=True),
            "-c:a", "aac", "-avoid_negative_ts", "make_zero", str(saida)]
     rodar(["ffmpeg", "-y", "-fflags", "+discardcorrupt", "-ss", f"{inicio:.2f}", "-i", str(arquivo),
            "-t", f"{fim - inicio:.2f}", *cmd], progresso=("Recortando", fim - inicio))
@@ -1016,7 +970,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 def versao_espanhol(video, palavras, textos, dados, meta, ficha, saida, pasta, modo,
                     foto_path, eh_thumbnail, expr_x, gancho_t, boom, legenda, layout=None, extras=None,
-                    margem=None, y_ajuste=0, estilo_render=None):
+                    margem=None, y_ajuste=0, estilo_render=None, previa=None):
     blocos = blocos_legenda(palavras, textos)
     frases = [" ".join(x["t"] for x in b) for b in blocos]
     prompt = ("Traduza para espanhol latino-americano, natural e com gírias leves, mantendo o tom de "
@@ -1047,12 +1001,13 @@ def versao_espanhol(video, palavras, textos, dados, meta, ficha, saida, pasta, m
     global MARGEM_LEGENDA
     antes, MARGEM_LEGENDA = MARGEM_LEGENDA, (MARGEM_LEGENDA if margem is None else margem)
     try:
-        ass = gerar_ass_blocos(tempos if legenda else [], pasta / "legenda_es.ass", duracao_video(video))
+        ass = gerar_ass_blocos(tempos if legenda else [], pasta / "legenda_es.ass",
+                               duracao_video(video) + (previa[1] - previa[0] if previa else 0))
     finally:
         MARGEM_LEGENDA = antes
     saida_es = pasta_es / (nome_seguro(es.get("titulo") or saida.stem) + ".mp4")
     renderizar(video, tp, ass, saida_es, modo, fp, yp, expr_x, gancho_t, boom, layout=layout, extras=extras,
-               estilo_render=estilo_render)
+               estilo_render=estilo_render, previa=previa)
     ficha_es = dict(ficha, pergunta=es["pergunta"], titulo=es.get("titulo", ""),
                     hashtags=es.get("hashtags", []), idioma="es", grupo_ab=None, variante=None)
     ficha_es.pop("capa", None)
@@ -1777,9 +1732,10 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
         if gancho_repete_inicio(palavras, textos, a, b):
             print("   o momento mais forte repete o que já aparece no começo — sem prévia.")
             prefixar = False
+    previa_gancho = None
     if prefixar:
-        log(f"Colocando o momento mais forte no começo ({a:.1f}s → {b:.1f}s)...")
-        video = efeitos.prefixar_gancho(video, pasta, a, b)
+        log(f"Colocando o momento mais forte no começo ({a:.1f}s → {b:.1f}s), direto na montagem...")
+        previa_gancho = (a, b)                     # o render emenda a prévia (zero re-encode a mais)
         d = b - a
         previa = [(dict(p, ini=round(p["ini"] - a, 2), fim=round(min(p["fim"], b) - a, 2), emoji=None,
                         gancho=False), textos[i])
@@ -1799,7 +1755,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
         boom = efeitos.gerar_boom(pasta)
         print(f"   gancho em {gancho_t:.1f}s (zoom + boom)")
 
-    duracao = duracao_video(video)
+    duracao = duracao_video(video) + (previa_gancho[1] - previa_gancho[0] if previa_gancho else 0)
     aviso_musica = None
     if CHECAR_MUSICA and tem_audio(video):        # áudio original do trecho (antes da nossa trilha)
         import audio_musica
@@ -1827,11 +1783,16 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
         except Exception as e:
             print(f"   ⚠ aprendizado de template indisponível: {str(e)[:100]}")
     efx = tpl["efeitos"]
+    ajuste_exposicao = efeitos.correcao_exposicao(video)
+    if ajuste_exposicao:
+        print("   vídeo escuro — levantando a exposição de leve.")
 
     def estilo_de(t_):
         """Efeitos de vídeo de um template (a versão B do teste A/B pode usar outro)."""
         e_ = t_["efeitos"]
-        er_ = {"cor": te.filtro_cor(e_, H)}
+        er_ = {"cor": ajuste_exposicao + te.filtro_cor(e_, H)}
+        if e_.get("zoom_lento") and tipo not in ("podcast", "jogo"):
+            er_["zoom_lento"] = float(e_["zoom_lento"])
         if e_.get("zoom_ritmo") and tipo not in ("podcast", "jogo"):
             er_["ritmo"] = te.trechos_ritmo(palavras, textos, duracao)
             er_["ritmo_int"] = float(e_["zoom_ritmo"])
@@ -2016,7 +1977,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
 
     ass = fazer_ass(margem)
     renderizar(video, img_topo, ass, saida, modo, img_faixa, y_faixa, expr_x, gancho_t, boom,
-               layout=layout, extras=extras, estilo_render=estilo_render)
+               layout=layout, extras=extras, estilo_render=estilo_render, previa=previa_gancho)
 
     # ---- revisão com IA (opcional, 1 imagem; no máximo refaz 1 vez) ----
     revisao = None
@@ -2036,7 +1997,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
                 avisos = avisos + ganchos(dados["pergunta"], dados.get("destaque"))
                 ass = fazer_ass(margem)
             renderizar(video, img_topo, ass, saida, modo, img_faixa, y_faixa, expr_x, gancho_t, boom,
-                       layout=layout, extras=extras, estilo_render=estilo_render)
+                       layout=layout, extras=extras, estilo_render=estilo_render, previa=previa_gancho)
 
     if palavras:
         gerar_srt(palavras, textos, saida.with_suffix(".srt"))
@@ -2126,7 +2087,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
             avisos_b = [a for a in avisos if a[3] not in ("Gancho", "GanchoMeio")] + ganchos(perg_b, dest_b)
             ass_b = fazer_ass(margem, avisos_b, f"legenda{sufixo}_B.ass", tpl_b)
             renderizar(video, None, ass_b, saida_b, modo, None, 0, expr_x, gancho_t, boom,
-                       layout=layout, extras=extras, estilo_render=er_b)
+                       layout=layout, extras=extras, estilo_render=er_b, previa=previa_gancho)
         else:
             if muda_perg:
                 tb, fb, yb = montar_topo(foto_path, perg_b, dest_b, meta.get("canal", ""), pasta,
@@ -2136,7 +2097,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
                 tb, fb, yb = img_topo, img_faixa, y_faixa
             ass_b = fazer_ass(margem, None, f"legenda{sufixo}_B.ass", tpl_b) if muda_tpl else ass
             renderizar(video, tb, ass_b, saida_b, modo, fb, yb, expr_x, gancho_t, boom,
-                       layout=layout, extras=extras, estilo_render=er_b)
+                       layout=layout, extras=extras, estilo_render=er_b, previa=previa_gancho)
         ficha_b = dict(ficha, pergunta=perg_b, variante="B", template=tpl_b["nome"])
         ficha_b.pop("capa", None)
         escrever_saidas(saida_b, ficha_b, meta)
@@ -2150,7 +2111,8 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
                             foto_path, eh_thumbnail, expr_x, gancho_t, boom, legenda,
                             layout=layout, extras=[e for e in extras if "emoji" not in Path(e["png"]).name
                                     and not Path(e["png"]).name.startswith("cta_")],
-                            margem=margem, y_ajuste=y_faixa - y_base_faixa, estilo_render=estilo_render)
+                            margem=margem, y_ajuste=y_faixa - y_base_faixa, estilo_render=estilo_render,
+                            previa=previa_gancho)
         except Exception as e:
             print(f"   ⚠ não consegui fazer a versão em espanhol: {str(e)[:150]}")
     return saida

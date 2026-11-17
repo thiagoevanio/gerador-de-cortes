@@ -34,24 +34,38 @@ cortes = _Cortes()
 def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo: str,
                faixa: Path | None = None, y_faixa: int = 0, expr_x: str | None = None,
                gancho_t: float | None = None, boom: Path | None = None, layout: dict | None = None,
-               extras: list | None = None, estilo_render: dict | None = None):
+               extras: list | None = None, estilo_render: dict | None = None,
+               previa: tuple | None = None):
     """Monta o 9:16. layout = {'top': (w,h,x,y), 'bot': (w,h,x,y), 'escurecer_top': [...],
     'escurecer_bot': [...]} troca a foto de cima por vídeo (podcast / jogo+facecam).
     extras = [{'png', 'x', 'y', 'ini', 'fim'}] (emojis, selo de parte, 'continua na parte 2').
     estilo_render (template de edição) = {'cor': filtros, 'ritmo': [(a,b)], 'ritmo_int': 0.05,
     'barra': '#hex', 'flash': [t], 'sfx': [{'arquivo','t','vol'}], 'musica': {'arquivo','vol'},
-    'enfase': [t], 'enfase_int': 0.08}."""
+    'enfase': [t], 'enfase_int': 0.08, 'zoom_lento': 0.05}.
+    previa = (a, b): o trecho [a, b] (o momento mais forte) entra repetido no começo, DENTRO desta
+    montagem — sem re-encode intermediário. As legendas/efeitos já chegam na linha do tempo final."""
     import templates_edicao as te
     er = estilo_render or {}
     destino_final = Path(saida).resolve()
     saida = video.parent / ("exportacao_" + __import__("uuid").uuid4().hex + ".mp4")
     cortes.log("Montando o vídeo 9:16 (leva uns minutos)...")
+    d_previa = max(0.0, previa[1] - previa[0]) if previa else 0.0
+    dur_total = _duracao_util(video) + d_previa
+    fps = fps_saida(video)
     entradas = ["-i", video.name]
     idx = 1
     zoom = ""
     cor = er.get("cor") or ""
     cheio = topo is None and not layout           # estilo clean: o vídeo ocupa a tela toda (sem foto/faixa)
     alt_v = cortes.ALTURA if cheio else cortes.ALTURA_VIDEO
+    vsrc, pre = "[0:v]", ""
+    if previa:                                    # prévia do gancho: emenda dentro do grafo. A prévia é
+        a, b = previa                             # uma 2ª leitura do MESMO arquivo com -ss (seek rápido),
+        entradas = ["-ss", f"{a:.3f}", "-to", f"{b:.3f}", "-i", video.name, "-i", video.name]
+        idx = 2                                   # pra não decodificar o vídeo inteiro duas vezes
+        pre = (f"[0:v]setpts=PTS-STARTPTS[pgv];[1:v]setpts=PTS-STARTPTS[prv];"
+               f"[pgv][prv]concat=n=2:v=1:a=0[vcat];")
+        vsrc = "[vcat]"
     fator = []
     if gancho_t is not None and not layout:      # "soco" de zoom: sobe até 14% e volta em ~0,7s
         z = f"max(0,1-abs(t-{gancho_t + 0.15:.2f})/0.45)"
@@ -61,6 +75,8 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
     if er.get("enfase") and er.get("enfase_int") and not layout:  # soco curto em cada palavra-chave
         import acabamento
         fator.append(acabamento.expr_enfase(er["enfase"][:6], float(er["enfase_int"])))
+    if er.get("zoom_lento") and not layout:      # zoom quase imperceptível do início ao fim (retenção)
+        fator.append(f"(1+{float(er['zoom_lento']):.3f}*t/{max(1.0, dur_total):.2f})")
     if fator:
         f_expr = "*".join(fator)
         zoom = (f",scale=w='{cortes.LARGURA}*{f_expr}':h='{alt_v}*{f_expr}':eval=frame:flags=bicubic,"
@@ -84,7 +100,7 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
     if layout:
         tw, th, tx, ty = layout["top"]
         bw, bh, bx, by = layout["bot"]
-        filtro = (f"[0:v]split[va][vb];"
+        filtro = (f"{pre}{vsrc}split[va][vb];"
                   f"[va]crop={tw}:{th}:{tx}:{ty},scale={cortes.LARGURA}:{alt_topo}:flags=lanczos{cor}"
                   f"{destacar_foco(layout.get('foco_top'), cortes.LARGURA, alt_topo, '0xFFE600')},setsar=1"
                   f"{escurecer(layout.get('escurecer_top'))}[top];"
@@ -94,14 +110,14 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
                   f"[top][vid]vstack=inputs=2:shortest=1,format=yuv420p[base]")
     else:
         if modo == "inteiro":
-            parte = (f"[0:v]split[a][b];"
+            parte = (f"{pre}{vsrc}split[a][b];"
                      f"[a]scale={cortes.LARGURA}:{alt_v}:force_original_aspect_ratio=increase,"
                      f"crop={cortes.LARGURA}:{alt_v},boxblur=20:2[fundo];"
                      f"[b]scale={cortes.LARGURA}:{alt_v}:force_original_aspect_ratio=decrease:flags=lanczos{cor}[frente];"
                      f"[fundo][frente]overlay=(W-w)/2:(H-h)/2{zoom},setsar=1,format=yuv420p[vid]")
         else:
             x = f":x='{expr_x}':y=0" if expr_x else ""
-            parte = (f"[0:v]scale={cortes.LARGURA}:{alt_v}:force_original_aspect_ratio=increase:flags=lanczos,"
+            parte = (f"{pre}{vsrc}scale={cortes.LARGURA}:{alt_v}:force_original_aspect_ratio=increase:flags=lanczos,"
                      f"crop={cortes.LARGURA}:{alt_v}{x}{cor}{zoom},setsar=1,format=yuv420p[vid]")
         if cheio:
             filtro = parte[:-len("[vid]")] + "[base]"
@@ -143,18 +159,29 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
         atual = f"x{k}"
         idx += 1
     if er.get("barra"):                          # barra de progresso no topo (segura a retenção)
-        dur_barra = max(1.0, _duracao_util(video))
+        dur_barra = max(1.0, dur_total)
         cor_barra = str(er["barra"]).lstrip("#")[:6] or "FFE600"
-        filtro += (f";color=c=0x{cor_barra}:s={cortes.LARGURA}x12:r=30[pbar];"
+        filtro += (f";color=c=0x{cor_barra}:s={cortes.LARGURA}x12:r={fps}[pbar];"
                    f"[{atual}][pbar]overlay=x='-w+w*t/{dur_barra:.2f}':y=0:shortest=1[pb]")
         atual = "pb"
     filtro += f";[{atual}]null[final]"
     mapa_audio = []
     if tem_audio(video):
-        fonte_audio = "[0:a]"
+        asrc = "[0:a]"
+        if previa:                                # prévia do gancho também no áudio, com micro-fades
+            filtro += (f";[0:a]asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.02,"
+                       f"afade=t=out:st={max(0.0, d_previa - 0.12):.3f}:d=0.12[pga];"
+                       f"[1:a]asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.03[pra];"
+                       f"[pga][pra]concat=n=2:v=0:a=1[acat]")
+            asrc = "[acat]"
+        fonte_audio = asrc
         sons = []                                 # (arquivo, segundos, volume, filtro extra)
         if boom and gancho_t is not None:
             sons.append((Path(boom).name, gancho_t, 0.68, "lowpass=f=240,"))
+        if previa:                                # 'whoosh' na virada da prévia pro início do vídeo
+            import efeitos
+            whoosh = efeitos.gerar_whoosh(video.parent, duracao=0.45)
+            sons.append((whoosh.name, max(0.0, d_previa - 0.22), 0.55, ""))
         for s_ in (er.get("sfx") or [])[:6]:
             if s_.get("arquivo") and (video.parent / Path(s_["arquivo"]).name).exists():
                 sons.append((Path(s_["arquivo"]).name, float(s_.get("t", 0)), float(s_.get("vol", 0.4)), ""))
@@ -164,10 +191,10 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
             mus_arq = None
         if sons or mus_arq:
             fmt = "aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo"
-            filtro += f";[0:a]{fmt}[a0]"
+            filtro += f";{asrc}{fmt}[a0]"
             rotulos = ["[a0]"]
             if mus_arq:                           # música em loop, abaixando quando a voz aparece (ducking)
-                dur_m = max(1.0, cortes.duracao_video(video))
+                dur_m = max(1.0, cortes.duracao_video(video) + d_previa)
                 vol_m = max(0.0, min(0.6, float(mus.get("vol", 0.16))))
                 entradas += ["-stream_loop", "-1", "-i", mus_arq.name]
                 filtro += (f";[a0]asplit=2[a0v][a0sc]"
@@ -189,10 +216,8 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
             filtro += f";{''.join(rotulos)}amix=inputs={len(rotulos)}:duration=first:normalize=0[mix]"
             fonte_audio = "[mix]"
         if cortes.AUDIO_PADRAO:
-            filtro += (f";{fonte_audio}highpass=f=75{cortes.filtro_chiado()},"
-                       f"equalizer=f=2800:t=q:w=1.2:g=2.0,"
-                       f"acompressor=threshold=-20dB:ratio=3:attack=8:release=220:makeup=2,"
-                       f"loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000,"
+            filtro += (f";{fonte_audio}{_cadeia_voz()},"
+                       f"{_loudnorm_medido(video)},aresample=48000,"
                        f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[aud]")
         else:
             filtro += (f";{fonte_audio}aresample=48000,"
@@ -200,17 +225,58 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
         mapa_audio = ["-map", "[aud]"]
     cortes.rodar(["ffmpeg", "-y", *entradas,
            "-filter_complex", filtro, "-map", "[final]", *mapa_audio,
-           "-shortest", "-r", "30", *cortes.args_encoder_video(intermediario=False),
-           "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
-           str(saida.resolve())], cwd=video.parent, progresso=("Montando o vídeo", _duracao_util(video)))
+           "-shortest", "-r", str(fps), "-g", str(fps * 2), *cortes.args_encoder_video(intermediario=False),
+           "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart",
+           str(saida.resolve())], cwd=video.parent, progresso=("Montando o vídeo", dur_total))
     from qualidade import inspecionar
-    relatorio=inspecionar(saida,_duracao_util(video),exigir_audio=tem_audio(video),
+    relatorio=inspecionar(saida,dur_total,exigir_audio=tem_audio(video),
                          aprofundar=cortes.carregar_config(cortes.PERFIL_EM_USO).get('revisao_tecnica',False))
     if not relatorio['aprovado']:
         raise RuntimeError('Revisão técnica: '+'; '.join(relatorio['erros']))
     os.replace(saida,destino_final)
     salvar_json(destino_final.with_suffix('.qualidade.json'),relatorio)
     for aviso in relatorio['avisos']:print('   Revisão: '+aviso)
+
+
+def _cadeia_voz():
+    """Filtros de voz do render (antes do nivelamento): tira grave de ambiente, dá presença e comprime."""
+    return (f"highpass=f=75{cortes.filtro_chiado()},"
+            f"equalizer=f=2800:t=q:w=1.2:g=2.0,"
+            f"acompressor=threshold=-20dB:ratio=3:attack=8:release=220:makeup=2")
+
+
+def _loudnorm_medido(video: Path) -> str:
+    """Nivelamento de volume em 2 passadas: mede primeiro (só o áudio, rápido) e aplica de forma
+    LINEAR — sem o 'bombeamento' do modo dinâmico. Se a medição falhar, volta pro modo de sempre."""
+    alvo = "loudnorm=I=-14:TP=-1.5:LRA=11"
+    try:
+        r = subprocess.run(["ffmpeg", "-v", "info", "-nostdin", "-i", str(video), "-map", "0:a:0",
+                            "-af", f"{_cadeia_voz()},{alvo}:print_format=json", "-f", "null", "-"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=240, creationflags=cortes.SEM_JANELA)
+        m = json.loads(r.stderr[r.stderr.rindex("{"):r.stderr.rindex("}") + 1])
+        medidos = {k: float(m[k]) for k in ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")}
+        if not -50 < medidos["input_i"] < 0:      # áudio quase mudo: o modo dinâmico se vira melhor
+            return alvo
+        return (alvo + f":measured_I={medidos['input_i']:.2f}:measured_TP={medidos['input_tp']:.2f}"
+                f":measured_LRA={medidos['input_lra']:.2f}:measured_thresh={medidos['input_thresh']:.2f}"
+                f":offset={medidos['target_offset']:.2f}:linear=true")
+    except (ValueError, KeyError, OSError, subprocess.SubprocessError):
+        return alvo
+
+
+def fps_saida(video: Path) -> int:
+    """30 ou 60: segue a fonte quando ela é 60 fps (gameplay fica fluido), fora do Modo PC fraco."""
+    if cortes.MODO_PC_FRACO or not cortes.carregar_config().get("fps_auto", True):
+        return 30
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                        "stream=avg_frame_rate", "-of", "csv=p=0", str(video)], capture_output=True,
+                       text=True, creationflags=cortes.SEM_JANELA)
+    try:
+        num, den = (r.stdout.strip().split(",")[0]).split("/")
+        return 60 if float(num) / max(1.0, float(den)) >= 48 else 30
+    except (ValueError, ZeroDivisionError):
+        return 30
 
 
 def _duracao_util(video: Path) -> float:

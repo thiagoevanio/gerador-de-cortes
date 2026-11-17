@@ -39,6 +39,8 @@ Depois, abra o programa, vá em **🔑 Contas & IA** e clique em **Conectar cont
 
 **Downloads do YouTube:** o programa baixa só os pedaços do trecho (segundos, não minutos) e resolve o desafio que o YouTube exige com o **Node.js** (o instalador e o Examinar o PC instalam se faltar). O yt-dlp se atualiza sozinho a cada 3 dias.
 
+**Qualidade do vídeo final:** a montagem sai com ~10 Mbps (modo look-ahead do chip), 60 fps quando a fonte é 60 fps, volume nivelado em 2 passadas e exposição corrigida sozinha em vídeo escuro.
+
 **Velocidade:** o programa usa o chip de vídeo do PC (Intel Quick Sync, Nvidia ou AMD) pra decodificar e codificar o vídeo, lê os rostos percorrendo o vídeo em sequência e mostra o andamento da montagem com o tempo que falta. Num notebook i5 de 2 núcleos, um corte de 45 s caiu de ~3 min para ~1 min 40 s.
 
 ## Usar

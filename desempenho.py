@@ -24,6 +24,28 @@ NOMES_ETAPAS = {"espera": "esperando a vez", "baixar": "baixar o trecho", "recor
                 "outros": "outros"}
 
 
+_look_ahead_cache = None
+
+
+def suporta_look_ahead():
+    """O modo look-ahead do Quick Sync (olha os quadros seguintes antes de gastar os bits) depende
+    do driver; testa 1 vez por sessão com meio segundo de vídeo sintético."""
+    global _look_ahead_cache
+    if _look_ahead_cache is None:
+        import cortes
+        try:
+            r = subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i",
+                                "color=c=gray:s=256x256:d=0.4:r=30", "-c:v", "h264_qsv",
+                                "-global_quality", "19", "-look_ahead", "1", "-f", "null", "-"],
+                               capture_output=True, text=True, timeout=60, creationflags=cortes.SEM_JANELA)
+            _look_ahead_cache = r.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            _look_ahead_cache = False
+        if not _look_ahead_cache:
+            print("   🎞 o chip não tem o modo look-ahead — usando qualidade fixa mais alta.")
+    return _look_ahead_cache
+
+
 # ============================================================ espaço em disco
 def _tamanho(caminho: Path) -> int:
     if caminho.is_file():

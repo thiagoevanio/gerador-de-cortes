@@ -12,6 +12,7 @@ Por que existe (medido em 16/11/2026, vídeo de 18 min, trecho de 45 s):
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -170,7 +171,7 @@ def trecho_rapido(info, ini, fim, pasta: Path, log=print):
     saida = pasta / "original.mp4"
     cortes.rodar(["ffmpeg", "-y", "-ss", f"{max(0.0, ini - iv):.3f}", "-i", str(pv),
                   "-ss", f"{max(0.0, ini - ia):.3f}", "-i", str(pa), "-t", f"{fim - ini:.3f}",
-                  "-map", "0:v:0", "-map", "1:a:0", *cortes.args_encoder_video(crf_padrao=20),
+                  "-map", "0:v:0", "-map", "1:a:0", *cortes.args_encoder_video(intermediario=True),
                   "-c:a", "aac", "-b:a", "192k", "-avoid_negative_ts", "make_zero", str(saida)],
                  progresso=("Preparando o trecho", fim - ini))
     for p in (pv, pa):
@@ -200,6 +201,67 @@ def trecho_com_limite(url, ini, fim, pasta: Path, formato, ordem, limite_s, log=
     if not arquivos:
         raise RuntimeError("o arquivo baixado saiu vazio")
     return arquivos[0]
+
+
+_ERROS_DEFINITIVOS = ("private video", "video unavailable", "vídeo indisponível", "sign in to confirm your age",
+                      "members-only", "this live event will begin", "copyright", "has been removed",
+                      "is not available in your country", "unsupported url")
+
+
+def baixar_trecho(url, inicio, fim, pasta: Path, tentativas=3):
+    """Baixa só o trecho. No YouTube, o jeito rápido (trecho_rapido) baixa só os pedaços do
+    trecho em segundos; se não der, o jeito tradicional roda com limite de tempo e tenta de novo
+    (na última vez com um formato de arquivo único, que falha menos). Nada fica travado pra sempre."""
+    import cortes
+    import yt_dlp
+
+    cortes.log(f"Baixando só o trecho {cortes.fmt_tempo(inicio)} → {cortes.fmt_tempo(fim)} ...")
+    res = 1080 if cortes.BAIXAR_1080 else 720
+    eh_youtube = bool(re.search(r"(youtube\.com|youtu\.be)/", str(url)))
+    ultimo_erro, info = None, None
+    for n in range(1, tentativas + 1):
+        plano_b = n == tentativas and tentativas > 1
+        for velho in [*pasta.glob("original.*"), *pasta.glob("parte_*")]:   # restos de uma tentativa
+            try:
+                velho.unlink()
+            except OSError:
+                pass
+        try:
+            if eh_youtube and n == 1:
+                with yt_dlp.YoutubeDL(opcoes_ytdlp(format=formato_trecho(res))) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                arquivo = trecho_rapido(info, inicio, fim, pasta, log=print)
+            else:
+                if info is None:
+                    with yt_dlp.YoutubeDL(opcoes_ytdlp()) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                formato = f"b[ext=mp4][height<={res}]/b[height<={res}]/b" if plano_b else "bv*+ba/b"
+                arquivo = trecho_com_limite(
+                    url, inicio, fim, pasta, formato, [f"res:{res}", "vcodec:h264", "acodec:m4a"],
+                    limite_s=max(300, int((fim - inicio) * 8)), log=print)
+            if cortes.duracao_video(arquivo) < 0.5:
+                raise RuntimeError("o arquivo baixado saiu vazio")
+        except Exception as e:                            # noqa: BLE001 - qualquer falha do yt-dlp/ffmpeg
+            ultimo_erro = e
+            texto = str(e).lower()
+            if any(m in texto for m in _ERROS_DEFINITIVOS) or n == tentativas:
+                break
+            if eh_youtube and n == 1:
+                print(f"   ⚠ o download rápido não deu ({str(e).strip()[:120]}) — usando o jeito tradicional...")
+                continue
+            espera = 4 * n
+            print(f"   ⚠ download falhou ({str(e).strip()[:120]}) — tentando de novo em {espera}s "
+                  f"({n + 1}/{tentativas}{', formato mais simples' if n + 1 == tentativas else ''})...")
+            time.sleep(espera)
+            continue
+        if n > 1:
+            print(f"   download OK na tentativa {n}.")
+        meta = {"titulo": (info or {}).get("title", ""),
+                "canal": (info or {}).get("uploader") or (info or {}).get("channel") or "",
+                "thumbnail": (info or {}).get("thumbnail")}
+        return arquivo, meta
+    raise RuntimeError(f"Não consegui baixar o vídeo: {str(ultimo_erro).strip()[:300]}")
+
 
 
 def diagnostico():

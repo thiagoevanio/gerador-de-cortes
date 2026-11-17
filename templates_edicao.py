@@ -45,6 +45,7 @@ _BASE = {
         "cor": None,                # None | vivo | cinema | frio | quente
         "vinheta": False,
         "pop_emojis": False,        # "pop" sonoro quando o emoji aparece
+        "zoom_lento": 0.0,          # 0.05 = zoom quase imperceptível do início ao fim (retenção)
         "nitidez": True,            # lanczos + unsharp leve quando a fonte é < 1080p
     },
 }
@@ -95,7 +96,8 @@ TEMPLATES = {
         "legenda": {"fonte": "Segoe UI Black", "tamanho_mult": 0.9, "tamanho_min": 66, "palavras": 4, "contorno": 4,
                     "sombra": 2, "cor_destaque": "#FFFFFF", "inativo_alpha": 120, "animacao": "suave",
                     "escala_ativa": 108, "cor_enfase": "#FFD166"},
-        "efeitos": {"zoom_ritmo": 0.03, "cor": "cinema", "vinheta": True, "barra_progresso": "#FFFFFF"},
+        "efeitos": {"zoom_ritmo": 0.03, "cor": "cinema", "vinheta": True, "barra_progresso": "#FFFFFF",
+                    "zoom_lento": 0.05},
     },
     "Minimalista": {
         "descricao": "Letra normal (sem caixa alta), menor, sem animação. Limpo e sério.",

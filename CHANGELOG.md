@@ -2,6 +2,26 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.21 — Mais qualidade de imagem, de som e de edição
+
+O corte final saía "magro" (4,5 Mbps; as plataformas recomendam 8–12 e recomprimem ao receber) e o
+vídeo passava por até 4 recompressões seguidas. Agora:
+- **O dobro de bitrate no vídeo final:** o Quick Sync liga o modo **look-ahead** (olha os quadros
+  seguintes antes de gastar os bits) — ~10 Mbps com a mesma velocidade. Se o chip não tiver o modo,
+  usa qualidade fixa mais alta; o teste é feito 1 vez por sessão.
+- **Uma recompressão a menos:** a prévia do gancho entra **direto na montagem final** (antes era um
+  arquivo re-comprimido no meio). Também poupa ~20 s por corte.
+- **Etapas do meio quase sem perda:** o recorte do trecho e a edição de pausas/vícios agora saem em
+  qualidade 15 (eram 20 e 17) — menos "pele borrada" de perda em cima de perda.
+- **60 fps automático:** fonte em 60 fps (gameplay) sai em 60 fps. Desligado no Modo PC fraco
+  (`fps_auto` na config). Keyframe a cada 2 s, como as plataformas pedem.
+- **Volume sem "bombeamento":** o nivelamento (loudnorm) agora mede primeiro e aplica de forma
+  linear (2 passadas). Áudio final em 256k.
+- **Exposição automática:** vídeo escuro (gameplay noturno, podcast mal iluminado) ganha um
+  levantamento suave de gama antes de montar.
+- **Zoom lento de retenção:** zoom quase imperceptível do início ao fim, novo efeito de template
+  (`zoom_lento`; o Podcast Premium já usa).
+
 ## 3.20 — Aba Contas que rola e 3 faixas novas
 
 - **Contas & IA:** a aba ganhou barra de rolagem (e rola com a rodinha do mouse). Antes, em telas

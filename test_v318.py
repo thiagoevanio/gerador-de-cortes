@@ -66,7 +66,7 @@ class ChipDeVideo(unittest.TestCase):
 
     def test_intermediario_usa_o_chip(self):
         with patch.object(cortes, "_encoder_h264_cache", "h264_qsv"):
-            self.assertEqual(cortes.args_encoder_video(intermediario=True), ["-c:v", "h264_qsv", "-global_quality", "17"])
+            self.assertEqual(cortes.args_encoder_video(intermediario=True), ["-c:v", "h264_qsv", "-global_quality", "15"])
         with patch.object(cortes, "_encoder_h264_cache", "libx264"):
             self.assertIn("ultrafast", cortes.args_encoder_video(intermediario=True))
 

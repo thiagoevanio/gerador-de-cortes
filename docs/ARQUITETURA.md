@@ -38,7 +38,7 @@ duas vezes.
 | | `legendas.py`, `faixas.py`, `acabamento.py` | Legendas `.ass`/`.srt`; faixa, topo e selos; zoom nas palavras-chave, zona segura, final, capa. |
 | | `efeitos.py` | Silêncios, vícios, rostos, layouts, gancho, efeitos sonoros. |
 | | `musica.py`, `audio_musica.py` | Trilha com ducking; detector de música de fundo. |
-| | `render.py` | Render final com ffmpeg. |
+| | `render.py` | Render final com ffmpeg: look-ahead no encoder, prévia do gancho emendada no próprio grafo, 60 fps automático e loudnorm em 2 passadas. |
 | | `longo.py`, `compilacao.py` | Cortes longos 16:9 e compilações. |
 | Entrega | `postagem.py`, `celular.py`, `projeto_edicao.py` | YouTube/TikTok, galeria no celular, receita para reeditar sem IA. |
 | Resultados | `resultados.py`, `historico_metricas.py`, `estatistica_editorial.py` | Métricas, aprendizado, A/B, horários. |

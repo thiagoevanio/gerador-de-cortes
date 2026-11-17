@@ -453,6 +453,36 @@ def gerar_pop(pasta: Path):
     return _salvar_wav_estereo(destino, onda, onda, sr=sr)
 
 
+def correcao_exposicao(video: Path, alvo=62):
+    """Mede o brilho médio do vídeo (1 quadro a cada 3 s); se for escuro (gameplay noturno, podcast
+    mal iluminado), devolve um levantamento SUAVE de gama pro render. Vídeo bem exposto: ''."""
+    import re as _re
+    import statistics
+    import subprocess
+
+    def medir(args, filtro=""):
+        r = subprocess.run(["ffmpeg", "-v", "info", "-nostdin", *args, "-i", str(video), "-vf",
+                            filtro + "scale=160:-2,signalstats,metadata=print:key=lavfi.signalstats.YAVG",
+                            "-fps_mode", "passthrough", "-f", "null", "-"],
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=180, creationflags=cortes.SEM_JANELA)
+        return [float(v) for v in _re.findall(r"YAVG=([0-9.]+)", r.stderr)]
+    try:
+        valores = medir(["-skip_frame", "nokey"])  # só os quadros-chave: mede em ~1 s
+        if len(valores) < 3:                       # arquivo com poucos quadros-chave: mede decodificando
+            valores = medir([], "fps=1,")
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return ""
+    if len(valores) < 3:                           # vídeo curto demais pra medir com confiança
+        return ""
+    mediana = statistics.median(valores)           # mediana: umas cenas escuras não disparam o ajuste
+    if mediana >= alvo:
+        return ""
+    gama = min(1.22, 1 + (alvo - mediana) / 160)
+    brilho = min(0.04, (alvo - mediana) / 900)
+    return f",eq=gamma={gama:.2f}:brightness={brilho:.3f}"
+
+
 # ---------------- cortar trechos (com micro-fade de áudio e alta nitidez) ----------------
 def cortar_intervalos_mantidos(video: Path, pasta: Path, manter, nome="editado.mp4"):
     """Recorta o vídeo mantendo exatamente a lista de intervalos [(a, b), ...] em UMA única passada.
