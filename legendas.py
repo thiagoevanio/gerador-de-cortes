@@ -51,6 +51,64 @@ def blocos_legenda(palavras, textos, n=None):
 
 COR_FALANTE_B = "#8FE3FF"        # podcast: a 2ª pessoa fala em azul-claro (a 1ª em branco)
 
+# fonte da legenda → arquivo (a pasta fontes/ do projeto vem antes; depois as do Windows)
+_ARQUIVOS_FONTE = {"arial black": ["ariblk.ttf"], "segoe ui black": ["seguibl.ttf"],
+                   "segoe ui semibold": ["seguisb.ttf", "segoeuib.ttf"], "georgia": ["georgiab.ttf", "georgia.ttf"],
+                   "impact": ["impact.ttf"], "bangers": ["Bangers-Regular.ttf"],
+                   "dejavu sans": ["DejaVuSans-Bold.ttf", "DejaVuSans.ttf"]}
+_medidores = {}
+
+
+def medidor_legenda(nome_fonte, tamanho_ass):
+    """Função que mede a largura (px na tela 1080) de um texto na fonte da legenda, no MESMO tamanho
+    que o libass desenha (o 'Fontsize' do .ass é a altura ascendente+descendente, não o 'em' do PIL).
+    None se a fonte não for achada (aí a legenda segue com a quebra automática)."""
+    chave = (str(nome_fonte or "").lower(), int(tamanho_ass))
+    if chave in _medidores:
+        return _medidores[chave]
+    from PIL import ImageFont
+    nomes = _ARQUIVOS_FONTE.get(chave[0], [])
+    pastas = [cortes.PASTA_PROJETO / "fontes", Path(__import__("os").environ.get("WINDIR", "C:/Windows")) / "Fonts",
+              Path("/usr/share/fonts/truetype/dejavu")]
+    arquivo = next((p / n for n in nomes for p in pastas if (p / n).exists()), None)
+    medir = None
+    if arquivo:
+        try:
+            ref = ImageFont.truetype(str(arquivo), 100)
+            sobe, desce = ref.getmetrics()
+            fnt = ImageFont.truetype(str(arquivo), max(8, round(tamanho_ass * 100 / (sobe + desce))))
+            medir = fnt.getlength
+        except OSError:
+            medir = None
+    _medidores[chave] = medir
+    return medir
+
+
+def largura_bloco(bloco, medir, txt, escala_ativa=100, folga_linha=1.0):
+    """Largura do bloco no pior momento: a maior palavra aumentada (palavra falada) e o 'pop'."""
+    partes = [medir(txt(x)) for x in bloco]
+    base = sum(partes) + medir(" ") * (len(partes) - 1)
+    return (base + max(partes) * max(0.0, escala_ativa / 100 - 1)) * folga_linha
+
+
+def caber_numa_linha(blocos, medir, limite, txt, escala_ativa=100, folga_linha=1.0):
+    """Divide os blocos que não cabem numa linha (contando a palavra falada aumentada e o 'pop' de
+    entrada). Assim a legenda NUNCA quebra em 2 linhas no meio do bloco — era isso que fazia a
+    legenda pular pra cima e voltar. Cada bloco novo continua com as mesmas palavras e tempos."""
+    def largura(bloco):
+        return largura_bloco(bloco, medir, txt, escala_ativa, folga_linha)
+    saida = []
+    for bloco in blocos:
+        atual = []
+        for item in bloco:
+            if atual and largura(atual + [item]) > limite:
+                saida.append(atual)
+                atual = []
+            atual.append(item)
+        if atual:
+            saida.append(atual)
+    return saida
+
 
 def gerar_ass(palavras, textos, destino: Path, duracao=0.0, legenda=True, falantes=None, textos_extra=None,
               margem=None, template=None):
@@ -122,8 +180,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                "neon": "{\\fad(90,0)\\fscx85\\fscy85\\t(0,120,\\fscx100\\fscy100)}",
                "suave": "{\\fad(140,0)}"}.get(animacao, "")
     blocos = blocos_legenda(palavras, textos, lg.get("palavras")) if legenda else []
+    medir = medidor_legenda(fonte_leg, tam) if blocos else None
+    pico = {"pop": 1.08, "salto": 1.12}.get(animacao, 1.0)
+    ativa = esc + (10 if animacao == "salto" else 0)
+    limite = (cortes.LARGURA - 120 - 2 * contorno - sombra - (20 if animacao == "marca_texto" else 0)) * 0.97
+    if medir:          # legenda sempre numa linha só, sempre na mesma altura (sem pular)
+        blocos = caber_numa_linha(blocos, medir, limite, txt, ativa, pico)
     for bi, bloco in enumerate(blocos):
         fim_b = bloco[-1]["fim"]
+        fixo = ""
+        if medir:      # \q2: o libass não quebra a linha; palavra gigante sozinha encolhe pra caber
+            larg_b = largura_bloco(bloco, medir, txt, ativa, pico)
+            fixo = "\\q2" + (f"\\fs{max(20, int(tam * limite / larg_b))}" if larg_b > limite else "")
         prox = blocos[bi + 1][0]["ini"] if bi + 1 < len(blocos) else fim_b + 0.4
         base = cor_base(bloco)
         if animacao == "karaoke":                   # 1 evento por bloco: a cor "enche" cada palavra
@@ -134,7 +202,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 partes.append("{\\kf" + str(cs) + "}" + txt(w))
             fim = max(min(prox, fim_b + 0.5), bloco[0]["ini"] + 0.2)
             eventos.append(f"Dialogue: 0,{tempo_ass(bloco[0]['ini'])},{tempo_ass(fim)},Leg,,0,0,0,,"
-                           "{" + blur + "\\1c" + dest + "\\2c" + base + "}" + " ".join(partes))
+                           "{" + fixo + blur + "\\1c" + dest + "\\2c" + base + "}" + " ".join(partes))
             continue
         for i, w in enumerate(bloco):
             fim = bloco[i + 1]["ini"] if i + 1 < len(bloco) else min(prox, fim_b + 0.5)
@@ -165,9 +233,44 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     partes.append(t)
             efeito = entrada if i == 0 else ""
             eventos.append(f"Dialogue: 0,{tempo_ass(w['ini'])},{tempo_ass(fim)},Leg,,0,0,0,,"
-                           + efeito + "{" + blur + "\\c" + base + "}" + " ".join(partes))
+                           + "{" + fixo + "}" + efeito + "{" + blur + "\\c" + base + "}" + " ".join(partes))
+    eventos = _sem_sobreposicao(eventos)
     destino.write_text(cab + "\n".join(eventos) + "\n", encoding="utf-8")
     return destino
+
+
+def _seg(tempo_ass_txt):
+    h, m, s = tempo_ass_txt.split(":")
+    return int(h) * 3600 + int(m) * 60 + float(s)
+
+
+def _sem_sobreposicao(eventos):
+    """Duas legendas (camada 0) nunca na tela ao mesmo tempo. Com palavras quase coladas no Whisper
+    (< 0,1 s), o evento esticado pra 0,1 s encavalava no próximo: o libass desenhava as duas uma por
+    cima da outra (ou empurrava uma pra cima) e a legenda piscava. Corta o fim no começo do próximo
+    e some com o que ficar com menos de 1 centésimo."""
+    outros = [e for e in eventos if not e.startswith("Dialogue: 0,")]
+    leg = []
+    for e in eventos:
+        if e.startswith("Dialogue: 0,"):
+            _, ini, fim, resto = e.split(",", 3)
+            leg.append([_seg(ini), _seg(fim), resto])
+    # 1) nunca encavalar: o fim de cada uma vai no máximo até o começo da próxima
+    for a, b in zip(leg, leg[1:]):
+        a[1] = min(a[1], b[0])
+    # 2) destaque de 1-2 quadros (palavra dita muito rápido) vira parte do anterior: sem 'flash'
+    limpos = []
+    for ev in leg:
+        if ev[1] - ev[0] < 0.06:
+            if limpos:
+                limpos[-1][1] = max(limpos[-1][1], ev[1])
+            continue
+        limpos.append(ev)
+    # 3) buraco de até 0,15 s entre duas legendas: emenda (senão ela 'apaga e acende')
+    for a, b in zip(limpos, limpos[1:]):
+        if 0 < b[0] - a[1] < 0.15:
+            a[1] = b[0]
+    return outros + [f"Dialogue: 0,{tempo_ass(ini)},{tempo_ass(fim)},{resto}" for ini, fim, resto in limpos]
 
 
 def texto_gancho_ass(pergunta, destaque=None):

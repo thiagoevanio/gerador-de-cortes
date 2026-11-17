@@ -34,6 +34,13 @@ def guardar(saida, video, topo, faixa, extras, boom, receita):
     return str(pasta.relative_to(saida.parent))
 
 
+def _previa(receita):
+    """A prévia do gancho (3.21+) é montada no render: a revisão precisa dela, senão a legenda
+    (que já está na linha do tempo com a prévia) sai fora de sincronia."""
+    p = receita.get('previa')
+    return (float(p[0]), float(p[1])) if isinstance(p, (list, tuple)) and len(p) == 2 else None
+
+
 def renderizar_revisao(video, palavras):
     import cortes
     video = Path(video).resolve()
@@ -77,7 +84,7 @@ def renderizar_revisao(video, palavras):
         cortes.renderizar(local(r['video']), local(r['topo']), ass, destino, r['modo'],
                           local(r['faixa']), r['y_faixa'], r.get('expr_x'), r.get('gancho_t'), local(r.get('boom')),
                           layout=r.get('layout'), extras=[dict(e, png=local(e['png'])) for e in r.get('extras', [])],
-                          estilo_render=r.get('estilo_render'))
+                          estilo_render=r.get('estilo_render'), previa=_previa(r))
         cortes.gerar_srt(palavras, textos, destino.with_suffix('.srt'))
         nova = {k:v for k,v in ficha.items() if k not in ('youtube_id','youtube_quando','yt_stats','tt_stats','tiktok','grupo_ab','variante','views_24h','medicoes')}
         nova.update(status='novo', revisado_de=video.name)
@@ -178,7 +185,7 @@ def trocar_pergunta(video, pergunta, destaque=None):
         extras = [dict(e, png=local(e['png'])) for e in r.get('extras', [])]
         cortes.renderizar(local(r['video']), topo, ass, destino, r['modo'], faixa, y_faixa, r.get('expr_x'),
                           r.get('gancho_t'), local(r.get('boom')), layout=r.get('layout'), extras=extras,
-                          estilo_render=r.get('estilo_render'))
+                          estilo_render=r.get('estilo_render'), previa=_previa(r))
         if palavras:
             cortes.gerar_srt(palavras, textos, destino.with_suffix('.srt'))
             salvar_json(destino.with_suffix('.transcricao.json'), dict(palavras=palavras))

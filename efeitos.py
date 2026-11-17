@@ -941,7 +941,6 @@ def margem_legenda_segura(rostos_px, margem, tamanho, altura_tela=1920, minimo=6
     if len(batem) < 0.3 * len(rostos_px):
         return margem
     base = sorted(r[1] for r in batem)[int(len(batem) * 0.8) - 1 if len(batem) > 1 else 0]
-    topo = sorted(r[0] for r in batem)[int(len(batem) * 0.2)]
     abaixo = altura_tela - (base + tamanho * 1.45)
     if minimo <= abaixo < margem:                  # só DESCE (a legenda nunca sobe além do escolhido)
         return int(abaixo)

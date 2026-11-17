@@ -2,6 +2,34 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.23 — Legenda que não pula nem pisca
+
+**Legenda pulando pra cima e voltando (2 causas, as duas corrigidas)**
+- **Quebra de linha no meio do bloco:** quando as palavras do bloco eram longas (ou a palavra falada
+  crescia no "pop"), o bloco não cabia na largura e virava 2 linhas — a legenda subia ~70 px e descia
+  no bloco seguinte. Agora o programa mede cada bloco com a fonte de verdade (o mesmo tamanho que o
+  libass desenha) e, se não couber, divide em blocos menores: a legenda é **sempre uma linha, sempre na
+  mesma altura**. Palavra gigante sozinha encolhe pra caber. Medido: o salto caiu de 71 px pra 9 px
+  (só o "pop" normal da palavra falada) no template Clássico.
+- **Duas legendas ao mesmo tempo:** com palavras quase coladas no Whisper (< 0,1 s), a legenda de uma
+  palavra ficava na tela junto com a do bloco seguinte e as duas eram desenhadas uma por cima da outra.
+  Agora a linha do tempo da legenda é limpa: nunca encavala, destaque de 1 quadro vira parte do
+  anterior e buraco de até 0,15 s entre blocos é emendado (sem "apaga e acende").
+
+**Central de edição em sincronia**
+- Revisar a legenda e trocar a pergunta remontavam o corte **sem a prévia do gancho** (que desde a 3.21
+  é montada no render) — a legenda saía ~2 s fora de sincronia. A receita agora guarda a prévia.
+
+**IA local**
+- **Liga sozinha:** depois de reiniciar o PC o Ollama fica desligado e a IA local falhava em todo
+  corte. Agora o programa liga o Ollama quando precisa.
+- **Pré-carrega o modelo** enquanto o Whisper transcreve (o 1º corte não espera ~2 min de disco).
+- Blindagem contra os vícios de modelo pequeno: pergunta com "???" ou "?" vira "??"; palavras-chave em
+  sequência (0,1,2,3) ou vazias ("o", "que", "é") são descartadas ("NÃO" e nomes continuam valendo);
+  gancho em palavra vazia ou na 1ª palavra é refeito pelo áudio; destaque em "O QUE" vira as palavras
+  fortes da pergunta; chamada copiada da pergunta é descartada.
+- O log do download do modelo mostra o andamento de 10 em 10% (antes enchia de "rodinhas").
+
 ## 3.22 — IA local completa, legenda que não duplica e posição livre
 
 **Legenda no lugar que você escolher**

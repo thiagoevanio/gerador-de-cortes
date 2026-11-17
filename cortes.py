@@ -1256,6 +1256,8 @@ def _preparar_corte(fonte_video, inicio, fim, foto=None, pergunta=None, legenda=
             if precisa_corte_unificado and tem_audio(video):
                 bruto = extrair_audio(video, pasta / "audio_bruto.wav")
                 wav_pronto = efeitos.recortar_wav_mantidos(bruto, pasta / "audio.wav", manter_unificado)
+            import ia_cortes
+            ia_cortes.aquecer_local()          # IA local: carrega o modelo enquanto transcreve
             palavras = transcrever(video, pasta, dica=dica_transcricao(meta), wav_pronto=wav_pronto)
         except ImportError:
             print("   ⚠ faster-whisper não instalado — seguindo sem transcrição.")
@@ -2061,6 +2063,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
                  foto=str(foto_path) if foto_path and not usa_layout and not CLEAN else None,
                  eh_thumbnail=bool(eh_thumbnail), so_faixa=bool(usa_layout), clean=bool(CLEAN),
                  canal=meta.get("canal", ""), y_base_faixa=y_base_faixa, legenda=bool(legenda),
+                 previa=list(previa_gancho) if previa_gancho else None,   # sem ela a revisão sai fora de sincronia
                  config_visual={k:_cfg_em_uso.get(k) for k in CHAVES_PERFIL}))
     ficha['sincronia'] = meta.get('sincronia')
     ficha['palavras_revisar'] = sum(p.get('confianca', 1) < 0.6 for p in palavras)

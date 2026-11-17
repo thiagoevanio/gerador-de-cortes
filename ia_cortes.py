@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 
@@ -400,12 +401,69 @@ def contexto_local(prompt, sistema=None, resposta=2048):
     return int(min(32768, max(4096, -(-tokens // 1024) * 1024)))
 
 
+def achar_ollama():
+    c = shutil.which("ollama")
+    if not c and os.name == "nt":
+        c = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Ollama", "ollama.exe")
+        c = c if os.path.exists(c) else None
+    return c
+
+
+_LIGANDO = threading.Lock()
+
+
+def garantir_ollama(espera=20):
+    """Ollama instalado mas desligado (PC reiniciou)? Liga em segundo plano e espera ele responder.
+    Sem isso a IA local falhava em todo corte depois de reiniciar o PC."""
+    if ollama_rodando():
+        return True
+    exe = achar_ollama()
+    if not exe:
+        return False
+    with _LIGANDO:                                  # 2 cortes ao mesmo tempo não ligam 2 servidores
+        if ollama_rodando():
+            return True
+        print("   ligando a IA local (Ollama)...")
+        try:
+            subprocess.Popen([exe, "serve"], creationflags=cortes.SEM_JANELA, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+        except OSError:
+            return False
+        for _ in range(espera * 2):
+            if ollama_rodando(timeout=1):
+                return True
+            time.sleep(0.5)
+    return ollama_rodando()
+
+
+def aquecer_local():
+    """Com a IA local escolhida, já carrega o modelo na memória em segundo plano (enquanto o Whisper
+    transcreve). Sem isso o 1º corte esperava ~2 min só pra ler o modelo do disco."""
+    if cortes.IA_PRINCIPAL != "local":
+        return None
+
+    def carregar():
+        try:
+            if not garantir_ollama() or not modelo_baixado(cortes.MODELO_LOCAL, modelos_ollama()):
+                return
+            corpo = json.dumps({"model": cortes.MODELO_LOCAL, "keep_alive": "15m"}).encode()
+            req = urllib.request.Request(URL_OLLAMA + "/api/generate", data=corpo,
+                                         headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=300) as r:
+                r.read()
+        except Exception:
+            pass                                       # é só um adiantamento: se falhar, carrega na hora
+    t = threading.Thread(target=carregar, daemon=True, name="aquecer-ia-local")
+    t.start()
+    return t
+
+
 def ollama_json(prompt: str, cwd=None, imagens=None, timeout=600, modelo=None, sistema=None):
     """IA local (Ollama). Não gasta nada, mas é mais lenta e mais simples. Ignora imagens.
     Contexto do tamanho do pedido, temperatura baixa (segue o formato) e o modelo fica carregado
     15 min entre um corte e outro."""
-    if not ollama_rodando():
-        print("   ⚠ IA local (Ollama) não está rodando.")
+    if not garantir_ollama():
+        print("   ⚠ IA local (Ollama) não está rodando (nem consegui ligar).")
         ia_motor.anotar(erro_tipo="ausente", erro="Ollama desligado")
         return None
     baixados = modelos_ollama()
@@ -438,7 +496,7 @@ def ollama_json(prompt: str, cwd=None, imagens=None, timeout=600, modelo=None, s
 IAS = {"claude": (claude_json, lambda: bool(cortes.comando_claude())),
        "codex": (codex_json, lambda: bool(achar_cli("codex"))),
        "gemini": (gemini_json, lambda: bool(cortes.GEMINI_API_KEY or achar_cli("gemini"))),
-       "local": (ollama_json, ollama_rodando)}
+       "local": (ollama_json, lambda: ollama_rodando() or bool(achar_ollama()))}
 
 
 def _modelo_para(nome, cfg, tarefa, escalar):
@@ -868,7 +926,14 @@ def _forte(palavra):
     """Palavra que vale colorir/marcar (não 'é', 'o', 'que', 'tipo'...)."""
     import otimizador_corte as oc
     limpa = oc._sem_acento(re.sub(r"\W", "", str(palavra)))
-    return len(limpa) >= 3 and limpa not in oc.STOPWORDS_PT
+    return len(limpa) >= 3 and limpa not in _VAZIAS
+
+
+# palavras que nunca merecem cor/gancho (artigo, preposição, muleta). "NÃO", "NUNCA", nomes etc. podem.
+_VAZIAS = {"que", "com", "uma", "umas", "uns", "por", "para", "pra", "pro", "dos", "das", "nos", "nas",
+           "pelo", "pela", "mas", "entao", "tipo", "assim", "isso", "esse", "essa", "este", "esta", "ele",
+           "ela", "eles", "elas", "aqui", "ali", "num", "numa", "seu", "sua", "meu", "minha", "tem", "foi",
+           "era", "ser", "vai", "cara", "mano", "gente", "galera", "sabe", "hum", "aham"}
 
 
 def _destaque_forte(pergunta, lista):
