@@ -843,8 +843,38 @@ def _validar_dados(dados, padrao, palavras, pergunta_fixa):
     dados["tom"] = templates_edicao.normalizar_tom(dados.get("tom"))
     if pergunta_fixa:
         dados["pergunta"] = pergunta_fixa
-    dados["destaque"] = ia_juiz.destaque_para(dados["pergunta"], dados["destaque"])
+    dados["destaque"] = _destaque_forte(dados["pergunta"], ia_juiz.destaque_para(dados["pergunta"], dados["destaque"]))
+    if _norm_txt(dados.get("chamada")) == _norm_txt(dados["pergunta"]):
+        dados["chamada"] = ""                       # modelo pequeno copia a pergunta na chamada
+    if palavras:                                    # ênfase só em palavra forte; sequência 0,1,2,3 = chute
+        ok = [k for k in dados["enfase"] if 0 <= k < len(palavras) and _forte(palavras[k]["t"])]
+        seq = len(dados["enfase"]) >= 4 and dados["enfase"] == list(range(dados["enfase"][0], dados["enfase"][0] + len(dados["enfase"])))
+        dados["enfase"] = [] if seq else ok
+        try:
+            g = int(dados.get("gancho"))
+        except (TypeError, ValueError):
+            g = None
+        if g is not None and 0 <= g < len(palavras) and not _forte(palavras[g]["t"]):
+            g = next((j for j in range(g + 1, min(g + 4, len(palavras))) if _forte(palavras[j]["t"])), None)
+        dados["gancho"] = g if g is not None and 0 <= g < len(palavras) else None
     return dados
+
+
+def _norm_txt(v):
+    return re.sub(r"\W", "", str(v or "").lower())
+
+
+def _forte(palavra):
+    """Palavra que vale colorir/marcar (não 'é', 'o', 'que', 'tipo'...)."""
+    import otimizador_corte as oc
+    limpa = oc._sem_acento(re.sub(r"\W", "", str(palavra)))
+    return len(limpa) >= 3 and limpa not in oc.STOPWORDS_PT
+
+
+def _destaque_forte(pergunta, lista):
+    import acabamento
+    bons = [d for d in (lista or []) if all(_forte(w) for w in str(d).split())]
+    return bons or acabamento.destaque_auto(pergunta)
 
 
 def _eh_emoji(v):
@@ -858,6 +888,8 @@ def _limpar_pergunta(texto, limite=60):
     if not t:
         return ""
     t = t.upper()
+    if t.endswith("?"):
+        t = t.rstrip("?!. ") + "??"
     if len(t) > limite:
         corpo = t[:limite - 2].rsplit(" ", 1)[0].rstrip(",;:-–")
         soltas = {"DE", "DO", "DA", "DOS", "DAS", "NO", "NA", "NOS", "NAS", "EM", "E", "O", "A", "OS", "AS",
@@ -882,7 +914,7 @@ def _julgar(dados, palavras, meta, pergunta_fixa):
               f"usando a alternativa: {escolhida}")
         dados["pergunta"] = escolhida
         dados["alternativas"] = alternativas
-        dados["destaque"] = ia_juiz.destaque_para(escolhida, dados.get("destaque"))
+        dados["destaque"] = _destaque_forte(escolhida, ia_juiz.destaque_para(escolhida, dados.get("destaque")))
         if dados.get("pergunta_b") == escolhida:          # a versão B não pode ficar igual à A
             outra = next((a for a in alternativas if a != escolhida), None)
             if outra:
@@ -950,6 +982,8 @@ def pensar_com_ia(palavras, meta, pasta: Path, frames=None, pergunta_fixa=None, 
     bruto = cortes.ia_json(prompt, cwd=pasta, imagens=imagens, tarefa="corte")
     origem = ia_motor.resultado()
     dados = _validar_dados(bruto, padrao, palavras, pergunta_fixa)
+    if origem.get("provedor") == "local" and isinstance(dados.get("gancho"), int) and dados["gancho"] <= 1:
+        dados["gancho"] = None
     if origem.get("provedor") == "local" and not pergunta_fixa:
         import otimizador_corte                 # modelo pequeno: a pergunta feita no PC concorre
         do_pc = _limpar_pergunta(otimizador_corte.gerar_pergunta_local(palavras, meta).get("pergunta"))

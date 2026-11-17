@@ -4,6 +4,7 @@ Usado pela interface (aba "Contas & IA").
 """
 import importlib.util
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -38,9 +39,21 @@ def rodar_mostrando(cmd, log):
     except FileNotFoundError as e:
         log(f"❌ Não encontrei o programa: {e}")
         return 1
-    for linha in p.stdout:
-        linha = linha.strip()
-        if linha and any(ch.isalnum() for ch in linha) and "█" not in linha and "▒" not in linha:
+    vistas, passo = set(), -1
+    for bruta in p.stdout:
+        # tira códigos de cor/cursor do terminal e as "rodinhas" (⠋⠙⠹...) que o Ollama desenha
+        for linha in re.split(r"[\r\n]+", re.sub(r"\x1b\[[0-9;?]*[A-Za-z]|[⠀-⣿]", "", bruta)):
+            linha = linha.strip()
+            if not linha or not any(ch.isalnum() for ch in linha) or linha in vistas:
+                continue
+            pct = re.search(r"(\d{1,3})%", linha)
+            if "█" in linha or "▒" in linha or "▏" in linha or pct:
+                # barra de progresso: só a cada 10% (em vez de centenas de linhas)
+                if pct and int(pct.group(1)) // 10 > passo:
+                    passo = int(pct.group(1)) // 10
+                    log(f"  {re.sub(r'[▕▏█▒ ]{3,}', ' ', linha)[:120]}")
+                continue
+            vistas.add(linha)                   # o Ollama redesenha as mesmas linhas sem parar
             log("  " + linha[:160])
     return p.wait()
 
