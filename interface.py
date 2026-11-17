@@ -1884,17 +1884,28 @@ class App(tk.Tk):
         grade = tk.Frame(esq, bg=CARTAO)
         grade.pack(fill="x")
 
-        def escala(col, txt, a_, b_):
+        def escala(col, txt, a_, b_, passo=0):
             f = tk.Frame(grade, bg=CARTAO)
             f.grid(row=0, column=col, sticky="ew", padx=(0, 8))
             grade.grid_columnconfigure(col, weight=1)
-            tk.Label(f, text=txt, bg=CARTAO, fg=TEXTO, font=("Segoe UI", 9, "bold"), anchor="w").pack(fill="x")
+            topo_e = tk.Frame(f, bg=CARTAO)
+            topo_e.pack(fill="x")
+            tk.Label(topo_e, text=txt, bg=CARTAO, fg=TEXTO, font=("Segoe UI", 9, "bold"), anchor="w").pack(
+                side="left", fill="x", expand=True)
             var = tk.IntVar()
+            if passo:                                  # ajuste fino: ▼ desce, ▲ sobe (de 'passo' em 'passo')
+                def mexer(d):
+                    var.set(max(a_, min(b_, var.get() + d)))
+                    self._mudou_visual()
+                for sinal, simbolo in ((-1, "▼"), (1, "▲")):
+                    tk.Button(topo_e, text=simbolo, command=lambda s=sinal: mexer(s * passo), bg=CAMPO, fg=TEXTO,
+                              relief="flat", bd=0, padx=6, font=("Segoe UI", 8), cursor="hand2",
+                              activebackground=VERMELHO).pack(side="left", padx=(2, 0))
             tk.Scale(f, from_=a_, to=b_, orient="horizontal", variable=var, bg=CARTAO, fg=TEXTO,
                      troughcolor=CAMPO, highlightthickness=0, activebackground=VERMELHO, sliderrelief="flat",
                      font=("Segoe UI", 8), command=lambda _v: self._mudou_visual()).pack(fill="x")
             return var
-        self.v_margem = escala(0, "Posição da legenda (↑)", 40, 650)
+        self.v_margem = escala(0, "Posição da legenda (↑)", 10, 1500, passo=10)
         self.v_tam = escala(1, "Tamanho da legenda", 50, 120)
         self.v_pal = escala(2, "Palavras por vez", 1, 5)
 
@@ -1980,7 +1991,7 @@ class App(tk.Tk):
         fz = tk.Frame(ef, bg=CARTAO)
         fz.pack(fill="x", pady=(4, 0))
         for rotulo, var, opcoes, larg in [("Final do corte:", self.v_final, self.finais, 22),
-                                          ("Zona segura da legenda:", self.v_zona, self.zonas, 19)]:
+                                          ("Mostrar botões do app:", self.v_zona, self.zonas, 19)]:
             tk.Label(fz, text=rotulo, bg=CARTAO, fg=TEXTO, font=("Segoe UI", 10)).pack(side="left")
             cb = ttk.Combobox(fz, textvariable=var, state="readonly", width=larg, values=list(opcoes))
             cb.pack(side="left", padx=(6, 12))

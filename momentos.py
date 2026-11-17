@@ -119,7 +119,8 @@ def _transcrever_frases(audio, trechos, log, dica=None):
     for i, (a, b) in enumerate(trechos, 1):
         log(f"   transcrevendo candidato {i}/{len(trechos)} ({cortes.fmt_tempo(a)})...")
         segs, _ = modelo.transcribe(audio[int(a * 16000):int(b * 16000)], language="pt",
-                                    vad_filter=True, beam_size=1, initial_prompt=dica)
+                                    vad_filter=True, beam_size=1, initial_prompt=dica,
+                                    condition_on_previous_text=False)
         fr = [(round(a + s.start, 2), round(a + s.end, 2), s.text.strip()) for s in segs if s.text.strip()]
         frases.append(fr)
         textos.append([(x, t) for x, _, t in fr])
@@ -238,7 +239,8 @@ def achar_momentos(fonte, n=3, dur=60, log=print, contexto_titulo="", completo=F
                 trechos = do_chat + [t for t in trechos if all(t[1] <= a or t[0] >= b for a, b in do_chat)]
         if cortes.carregar_config().get('analise_ampla', False):
             log('Análise ampla: transcrevendo o áudio para procurar mudanças e acontecimentos.')
-            segs, _ = cortes.carregar_whisper('base').transcribe(audio, language='pt', vad_filter=True, beam_size=1)
+            segs, _ = cortes.carregar_whisper('base').transcribe(audio, language='pt', vad_filter=True, beam_size=1,
+                                                                 condition_on_previous_text=False)
             segmentos = [(round(s.start, 2), round(s.end, 2), s.text.strip()) for s in segs if s.text.strip()]
             meta['transcricao_completa'] = segmentos
             textuais = candidatos_por_texto(segmentos, total, dur)

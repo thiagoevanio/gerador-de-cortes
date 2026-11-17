@@ -138,8 +138,8 @@ class CorteCompleto(unittest.TestCase):
             trans = json.loads(final.with_suffix(".transcricao.json").read_text(encoding="utf-8"))["palavras"]
             self.assertEqual(trans[0]["t"], "palavra")
             self.assertLess(cortes.duracao_video(final), 19.6)
-            # zona segura: legenda acima da área dos botões
-            self.assertGreaterEqual(ficha["revisor"]["margem"], acabamento.zona_segura("todas")["baixo"])
+            # 3.22: a legenda fica onde a pessoa pôs na barra (a zona do app virou só guia na prévia)
+            self.assertLessEqual(ficha["revisor"]["margem"], cortes.MARGEM_LEGENDA)
             # chamada no fim
             receita = json.loads((final.parent / ficha["projeto_edicao"] / "receita.json")
                                  .read_text(encoding="utf-8"))

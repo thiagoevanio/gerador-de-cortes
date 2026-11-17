@@ -128,8 +128,101 @@ def aplicar_delta_palavras(palavras: list[dict], correcoes: dict | list | None) 
     return saida
 
 
+def travar_duplicatas(originais: list[str], corrigidas: list[str]) -> tuple[list[str], int]:
+    """Desfaz correções da IA que DUPLICARIAM texto na legenda ou que não têm nada a ver com a
+    palavra ouvida. Ex.: palavra 12 'Cariane' → 'Renato Cariani' com a 13 sendo 'Cariani' (a legenda
+    mostraria 'CARIANI CARIANI'); ou a IA deslocou a lista e a palavra virou a vizinha. Devolve
+    (lista segura, quantas correções foram desfeitas)."""
+    n = len(originais)
+    if len(corrigidas) != n:
+        return list(originais), 0
+    norm_o = [_limpar_token(w) for w in originais]
+    norm_c = [_limpar_token(str(w or "")) for w in corrigidas]
+
+    def parecida(a, b):
+        return a == b or (len(a) >= 4 and difflib.SequenceMatcher(None, a, b).ratio() >= 0.8)
+    saida, desfeitas = [], 0
+    for i, (orig, nova) in enumerate(zip(originais, corrigidas)):
+        nova = str(nova or "").strip()
+        if not nova or nova == orig:
+            saida.append(orig if not nova else nova)
+            continue
+        tokens = [_limpar_token(t) for t in nova.split() if _limpar_token(t)]
+        # a vizinha como estava E como a IA deixou (ex.: 'Cariane' corrigida pra 'Cariani')
+        vizinhos = {v for j in (i - 1, i + 1) if 0 <= j < n for v in (norm_o[j], norm_c[j]) if v}
+        extras = [t for t in tokens if not parecida(t, norm_o[i])]    # o que a correção ACRESCENTOU
+        ruim = (
+            not tokens
+            or len(tokens) > 2                                   # 1 palavra virou uma frase
+            or (len(tokens) == 2 and any(parecida(t, v) for t in extras for v in vizinhos))  # repete a vizinha
+            or ("".join(tokens) in vizinhos and "".join(tokens) != norm_o[i])           # virou a vizinha
+            or (len(norm_o[i]) >= 3 and len(tokens) == 1               # nada a ver com o que foi ouvido
+                and not nova[:1].isupper()                              # (nome próprio pode: 'caze'→'Casimiro')
+                and difflib.SequenceMatcher(None, norm_o[i], tokens[0]).ratio() < 0.34)
+        )
+        if ruim:
+            saida.append(orig)
+            desfeitas += 1
+        else:
+            saida.append(nova)
+    return saida, desfeitas
+
+
+def limpar_repeticoes(palavras: list[dict]) -> tuple[list[dict], int]:
+    """Tira da transcrição o que o Whisper repetiu sem ninguém ter falado de novo:
+    1) a mesma palavra emitida 2 vezes no MESMO tempo (emenda entre segmentos);
+    2) 'loop' de alucinação: a mesma frase de 3+ palavras repetida 3+ vezes seguidas (ou de 2
+       palavras 4+ vezes). Repetição curta de verdade ('não, não, não') fica."""
+    if not palavras:
+        return [], 0
+    limpas = []
+    for p in palavras:
+        if limpas:
+            ant = limpas[-1]
+            if (_limpar_token(p["t"]) == _limpar_token(ant["t"]) and _limpar_token(p["t"])
+                    and float(p["ini"]) < float(ant["fim"]) - 0.02):
+                continue                                         # duplicata no mesmo instante
+        limpas.append(p)
+    norm = [_limpar_token(p["t"]) for p in limpas]
+    manter = [True] * len(limpas)
+    i = 0
+    while i < len(limpas):
+        achou = False
+        for tam in range(8, 1, -1):
+            if i + tam * 2 > len(limpas):
+                continue
+            bloco = norm[i:i + tam]
+            if not all(bloco):
+                continue
+            reps = 1
+            while norm[i + reps * tam:i + (reps + 1) * tam] == bloco:
+                reps += 1
+            if reps >= (3 if tam >= 3 else 4):
+                for k in range(i + tam, i + reps * tam):
+                    manter[k] = False
+                i += reps * tam
+                achou = True
+                break
+        if not achou:
+            i += 1
+    saida = [p for p, m in zip(limpas, manter) if m]
+    return saida, len(palavras) - len(saida)
+
+
 def reconciliar_palavras_ia(palavras: list[dict], lista_ia: list | None = None,
                             correcoes: dict | list | None = None) -> tuple[list[str], str]:
+    """Junta as correções da IA à transcrição, sempre com a trava contra legenda duplicada."""
+    textos, metodo = _reconciliar(palavras, lista_ia, correcoes)
+    originais = [str(p.get("t", "")).strip() for p in palavras]
+    seguras, desfeitas = travar_duplicatas(originais, textos)
+    if desfeitas:
+        print(f"   trava da legenda: {desfeitas} correção(ões) da IA desfeita(s) (iam repetir palavra "
+              "ou não tinham a ver com o áudio).")
+    return seguras, metodo
+
+
+def _reconciliar(palavras: list[dict], lista_ia: list | None = None,
+                 correcoes: dict | list | None = None) -> tuple[list[str], str]:
     originais = [str(p.get("t", "")).strip() for p in palavras]
     if not originais:
         return [], "vazio"

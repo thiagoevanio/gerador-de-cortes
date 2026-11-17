@@ -816,7 +816,7 @@ def transcrever(video: Path, pasta: Path, modelo=None, dica=None, wav_pronto: Pa
     segs, _ = carregar_whisper(modelo).transcribe(
         amostras, language="pt", word_timestamps=True, vad_filter=True,
         beam_size=3 if cfg.get("whisper_preciso") else 1,
-        initial_prompt=dica)
+        initial_prompt=dica, condition_on_previous_text=False)   # sem 'eco' do trecho anterior (loops)
     palavras = []
     for seg in segs:
         for w in seg.words or []:
@@ -841,6 +841,10 @@ def transcrever(video: Path, pasta: Path, modelo=None, dica=None, wav_pronto: Pa
             atravessa = any(p['ini'] < a < p['fim'] or p['ini'] < b < p['fim'] for p in palavras)
             if novas and antigas and not atravessa and sum(p['confianca'] for p in novas)/len(novas) > sum(p.get('confianca', 0) for p in antigas)/len(antigas):
                 palavras = sorted([p for p in palavras if not (a <= p['ini'] and p['fim'] <= b)] + novas, key=lambda p:p['ini'])
+    import otimizador_corte
+    palavras, repetidas = otimizador_corte.limpar_repeticoes(palavras)
+    if repetidas:
+        print(f"   {repetidas} palavra(s) repetida(s) pelo Whisper removida(s) da legenda.")
     print(f"   {len(palavras)} palavras.")
     return palavras
 
@@ -1866,12 +1870,10 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
                                                    meta.get("canal", ""), pasta, inteira=eh_thumbnail,
                                                    so_faixa=usa_layout)
     y_base_faixa = y_faixa
-    # clean em tela cheia: legenda mais alta (os botões do TikTok/Shorts cobrem a parte de baixo)
-    margem = MARGEM_LEGENDA + 330 if CLEAN and not usa_layout and modo == "cortado" else MARGEM_LEGENDA
+    # a posição da legenda é a que a pessoa escolheu no Visual (a zona segura do app só aparece
+    # na prévia, como guia; ela não empurra mais a legenda pra cima)
+    margem = MARGEM_LEGENDA
     zona = acabamento.zona_segura(PLATAFORMA_ALVO)   # onde os botões/legenda do app cobrem o vídeo
-    if legenda and palavras and zona["baixo"] > margem:
-        print(f"   zona segura ({PLATAFORMA_ALVO}): legenda subiu de {margem} pra {zona['baixo']}.")
-        margem = zona["baixo"]
 
     def ganchos(pergunta_txt, destaque):
         """Estilo clean: a pergunta vira texto na tela nos primeiros segundos."""
@@ -1885,8 +1887,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
     if REVISOR and rostos_px:
         if legenda and palavras:
             base_m = margem
-            margem = efeitos.margem_legenda_segura(rostos_px, base_m, TAMANHO_LEGENDA, ALTURA,
-                                                   minimo=max(60, zona["baixo"]))
+            margem = efeitos.margem_legenda_segura(rostos_px, base_m, TAMANHO_LEGENDA, ALTURA, minimo=20)
             if margem != base_m:
                 print(f"   revisor: legenda movida pra não ficar em cima do rosto (margem {margem}).")
 
@@ -1991,8 +1992,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
             if revisao.get("faixa_sobre_rosto"):
                 y_faixa = max(alt_topo - 520, y_faixa - 140)
             if revisao.get("legenda_sobre_rosto") and legenda:
-                piso_m = max(60, zona["baixo"])           # pra baixo só até a zona segura
-                margem = piso_m if margem > piso_m + 60 else min(ALTURA - 1000, margem + 520)
+                margem = max(20, int(margem * 0.5))       # só desce (nunca sobe acima do escolhido)
                 extras, avisos = montar_extras(margem)
                 avisos = avisos + ganchos(dados["pergunta"], dados.get("destaque"))
                 ass = fazer_ass(margem)

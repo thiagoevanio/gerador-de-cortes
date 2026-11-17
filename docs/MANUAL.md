@@ -129,6 +129,7 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
 - **Versão em espanhol:** a IA traduz a pergunta, a legenda e o título (1 chamada curta) e gera o corte na pasta `espanhol`, pra um 2º canal voltado pra América Latina.
 - **Checar se é inédito:** antes de montar, procura no YouTube se outros canais já postaram aquele lance esta semana.
 - Posição, tamanho e cor da legenda, cor e **formato da faixa** (Rasgada, Pincelada, Fita adesiva, Adesivo, Balão de fala, Neon, Plantão (jornal), Explosão (HQ), Diagonal (esporte) ou Reta clássica) e selo do canal, com prévia ao vivo. O botão **👁 Ver formatos** mostra uma amostra de cada faixa com as suas cores; é só clicar na que você quer.
+- **Posição da legenda:** a barra vai de 10 (colada no rodapé) a 1500 (quase no topo); os botões ▼ ▲ ajustam de 10 em 10. A legenda fica exatamente onde você puser. Em **Mostrar botões do app** a prévia desenha, em vermelho tracejado, a área que os botões do TikTok/Reels/Shorts costumam cobrir — é só um guia.
 - **Efeitos:**
   - **Seguir o rosto:** a câmera acompanha quem fala, em vez de cortar sempre o meio.
   - **Tirar silêncios:** corta as pausas longas.
@@ -162,7 +163,7 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
   - **Claude:** assinatura do Claude.
   - **Codex:** conta do ChatGPT.
   - **Gemini:** grátis. Clique em **🔑 Colar chave da API** e cole a chave do Google AI Studio (fica salva só no seu PC, no `config.json` — não mande esse arquivo pra ninguém). Ou use o Gemini CLI com login da conta Google.
-  - **Local:** grátis, roda no PC, mais lenta e mais simples. Em **Modelo da IA local** escolha o tamanho: *Leve* (1,9 GB, qualquer PC), *Média* (4,7 GB, 16 GB de RAM), *Forte* (8,1 GB) ou *Máxima* (9 GB, PC forte ou placa de vídeo). O programa mostra a memória do seu PC e qual é o recomendado. Clique em **Instalar / baixar modelo**: baixa uma vez só; um modelo que já está no PC não baixa de novo.
+  - **Local:** grátis, roda no PC, mais lenta e mais simples. Em **Modelo da IA local** escolha o tamanho: *Leve* (1,9 GB, qualquer PC), *Média* (4,7 GB, 16 GB de RAM), *Forte* (8,1 GB) ou *Máxima* (9 GB, PC forte ou placa de vídeo). O programa mostra a memória do seu PC e qual é o recomendado. Clique em **Instalar / baixar modelo**: baixa uma vez só; um modelo que já está no PC não baixa de novo. A IA local faz o mesmo trabalho das outras (corrige a legenda, acha o gancho, as palavras-chave e os emojis); só a foto do topo é escolhida pelo PC.
   - **Nenhuma.**
 - **Reserva:** se a IA escolhida falhar ou bater o limite, o sistema usa outra.
 - **Qualidade da IA:** *Econômica* (Haiku em tudo), *Equilibrada* (Sonnet nos cortes e na escolha de momentos, Haiku no resto) ou *Máxima* (Opus nos cortes). O botão **📊 Uso da IA** mostra chamadas, falhas, tempo e tokens dos últimos 7 dias.

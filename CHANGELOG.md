@@ -2,6 +2,35 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.22 — IA local completa, legenda que não duplica e posição livre
+
+**Legenda no lugar que você escolher**
+- A barra **Posição da legenda** agora manda de verdade: antes a "zona segura" do TikTok (480 px) e um
+  ajuste do estilo clean (+330 px) empurravam a legenda pra cima por mais que você descesse a barra.
+- A barra vai de 10 (colada no rodapé) a 1500 (quase no topo), com botões **▼ ▲** pra ajuste fino.
+- A área dos botões do app virou só um **guia vermelho tracejado** na prévia ("Mostrar botões do app").
+- O revisor que desvia do rosto só **desce** a legenda; nunca sobe além do que você escolheu.
+- Com a legenda colada no rodapé, o seu **@** vai pro canto de cima (pra não encostar na legenda).
+
+**Legenda sem palavra duplicada**
+- **Trava da legenda:** correção da IA que repetiria palavra (ex.: "Renato" → "Renato Cariani" com
+  "Cariani" logo depois), que deslocaria a lista ou que não tem nada a ver com o áudio é desfeita.
+- **Whisper sem eco:** sem `condition_on_previous_text` (o que causava frase repetida em loop) e uma
+  limpeza remove a palavra emitida 2 vezes no mesmo instante e loops de alucinação.
+
+**IA local (Ollama) que faz tudo**
+- **Memória do tamanho do pedido** (`num_ctx`): o Ollama usava 2-4 mil tokens e cortava o começo dos
+  pedidos grandes sem avisar — a IA local respondia sem ver a transcrição inteira. Esse era o maior erro.
+- Agora ela também corrige a legenda, marca o gancho, as palavras-chave, os emojis, a abertura, o trecho
+  da live e a divisão em partes (antes só fazia pergunta e título). Só a foto continua sendo escolhida
+  no PC (modelo local não enxerga imagem).
+- **Molde de JSON** no fim do pedido (modelo pequeno erra menos copiando um formato), temperatura baixa,
+  o modelo fica carregado 15 min entre cortes e o tempo limite nunca é menor que 4 min.
+- Respostas conferidas: nota fora de 0-10, emoji escrito em texto, tipos trocados — tudo vira o padrão.
+- A pergunta feita no PC concorre com a da IA local; o juiz fica com a melhor.
+- Vários cortes de uma vez: com IA local vai 1 por chamada (o lote confundia modelo pequeno).
+- Avisa quando o modelo escolhido não está baixado no Ollama.
+
 ## 3.21 — Mais qualidade de imagem, de som e de edição
 
 O corte final saía "magro" (4,5 Mbps; as plataformas recomendam 8–12 e recomprimem ao receber) e o

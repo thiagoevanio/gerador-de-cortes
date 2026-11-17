@@ -25,9 +25,31 @@ def _foto_exemplo():
 
 
 def _margem(base):
-    """A mesma margem do corte de verdade: nunca abaixo da zona segura da plataforma."""
+    """A mesma margem do corte de verdade: a que a pessoa escolheu na barra."""
+    return int(base)
+
+
+def _y_marca():
+    """O @ fica no canto de baixo; com a legenda colada no rodapé ele sobe pro canto de cima."""
+    return 70 if cortes.MARGEM_LEGENDA < 150 else cortes.ALTURA - 90
+
+
+def _zona_guia(tela):
+    """Faixa tracejada mostrando onde os botões/legenda do app costumam cobrir o vídeo (só guia)."""
     import acabamento
-    return max(base, acabamento.zona_segura(cortes.PLATAFORMA_ALVO)["baixo"])
+    z = acabamento.zona_segura(cortes.PLATAFORMA_ALVO)["baixo"]
+    if not z:
+        return tela
+    base = tela.convert("RGBA")
+    camada = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(camada)
+    y = cortes.ALTURA - z
+    d.rectangle([0, y, cortes.LARGURA, cortes.ALTURA], fill=(255, 60, 60, 38))
+    for x in range(0, cortes.LARGURA, 40):
+        d.line([(x, y), (x + 22, y)], fill=(255, 90, 90, 230), width=4)
+    d.text((24, y + 10), "botões do app cobrem aqui", font=cortes.fonte(30), fill=(255, 150, 150, 235))
+    base.alpha_composite(camada)
+    return base.convert("RGB")
 
 
 def _legenda_real(tela, margem):
@@ -81,7 +103,8 @@ def _previa_clean(cfg, altura):
                    stroke_fill=(0, 0, 0))
             y += 96
         d.text((40, y + 10), "(texto nos primeiros 3s)", font=cortes.fonte(30), fill=(220, 220, 220))
-    real = _legenda_real(tela, _margem(cortes.MARGEM_LEGENDA + 330))
+    tela = _zona_guia(tela)
+    real = _legenda_real(tela, _margem(cortes.MARGEM_LEGENDA))
     if real is not None:
         tela = real
         d = ImageDraw.Draw(tela)
@@ -90,7 +113,7 @@ def _previa_clean(cfg, altura):
     espaco = d.textlength(" ", font=fnt)
     larg = sum(d.textlength(p, font=fnt) for p in palavras) + espaco * (len(palavras) - 1)
     alt_txt = fnt.getbbox("ÁGjy")[3]
-    y = cortes.ALTURA - _margem(cortes.MARGEM_LEGENDA + 330) - alt_txt
+    y = cortes.ALTURA - _margem(cortes.MARGEM_LEGENDA) - alt_txt
     x = (cortes.LARGURA - larg) / 2
     for i, p in enumerate(palavras):
         d.text((x, y), p, font=fnt, fill=cor_dest if i == 1 else (255, 255, 255), stroke_width=7,
@@ -100,7 +123,7 @@ def _previa_clean(cfg, altura):
         marca = cortes.MARCA if cortes.MARCA.startswith("@") else "@" + cortes.MARCA
         fm = cortes.fonte(40)
         wm = d.textlength(marca, font=fm)
-        d.text((cortes.LARGURA - wm - 40, cortes.ALTURA - 90), marca, font=fm, fill=(235, 235, 235),
+        d.text((cortes.LARGURA - wm - 40, _y_marca()), marca, font=fm, fill=(235, 235, 235),
                stroke_width=3, stroke_fill=(0, 0, 0))
     largura = int(altura * 9 / 16)
     return tela.resize((largura, altura), Image.LANCZOS)
@@ -135,6 +158,7 @@ def gerar_previa(cfg, altura=540):
         d = ImageDraw.Draw(tela)
 
     # legenda de exemplo (mesma posição/tamanho do vídeo final) — de verdade, pelo template
+    tela = _zona_guia(tela)
     real = _legenda_real(tela, _margem(cortes.MARGEM_LEGENDA))
     if real is not None:
         tela = real
@@ -162,7 +186,7 @@ def gerar_previa(cfg, altura=540):
         camada = Image.new("RGBA", base.size, (0, 0, 0, 0))
         dm = ImageDraw.Draw(camada)
         wm = dm.textlength(marca, font=fm)
-        dm.text((cortes.LARGURA - wm - 40, cortes.ALTURA - 90), marca, font=fm,
+        dm.text((cortes.LARGURA - wm - 40, _y_marca()), marca, font=fm,
                 fill=(255, 255, 255, 160), stroke_width=3, stroke_fill=(0, 0, 0, 110))
         base.alpha_composite(camada)
         tela = base.convert("RGB")

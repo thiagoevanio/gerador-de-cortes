@@ -79,6 +79,9 @@ def gerar_ass(palavras, textos, destino: Path, duracao=0.0, legenda=True, falant
     esc = int(lg.get("escala_ativa") or 100) if animacao != "nenhuma" else 100
     alpha_inativo = max(0, min(255, int(lg.get("inativo_alpha") or 0)))
     blur = f"\\blur{int(lg['blur'])}" if lg.get("blur") else ""
+    margem_leg = cortes.MARGEM_LEGENDA if margem is None else margem
+    # legenda colada no rodapé: o @ vai pro canto de cima (senão os dois se encostam)
+    marca_pos = "9,40,36,70" if margem_leg < 150 else "3,40,36,36"
     cab = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {cortes.LARGURA}
@@ -87,8 +90,8 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Leg,{fonte_leg},{tam},{texto_cor},{texto_cor},{cor_box},{cor_back},-1,0,0,0,100,100,0,0,{borda},{contorno},{sombra},2,60,60,{cortes.MARGEM_LEGENDA if margem is None else margem},1
-Style: Marca,{cortes.FONTE_LEGENDA},40,&H50FFFFFF,&H50FFFFFF,&H70000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,3,40,36,36,1
+Style: Leg,{fonte_leg},{tam},{texto_cor},{texto_cor},{cor_box},{cor_back},-1,0,0,0,100,100,0,0,{borda},{contorno},{sombra},2,60,60,{margem_leg},1
+Style: Marca,{cortes.FONTE_LEGENDA},40,&H50FFFFFF,&H50FFFFFF,&H70000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,{marca_pos},1
 Style: Aviso,{fonte_leg},64,&H0000E6FF,&H0000E6FF,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,6,3,5,60,60,0,1
 Style: Gancho,{fonte_leg},88,&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0000000,-1,0,0,0,100,100,0,0,1,8,4,8,70,70,250,1
 Style: GanchoMeio,{fonte_leg},72,&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0000000,-1,0,0,0,100,100,0,0,1,8,4,5,70,70,0,1
