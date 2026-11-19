@@ -111,15 +111,17 @@ def caber_numa_linha(blocos, medir, limite, txt, escala_ativa=100, folga_linha=1
 
 
 def gerar_ass(palavras, textos, destino: Path, duracao=0.0, legenda=True, falantes=None, textos_extra=None,
-              margem=None, template=None):
+              margem=None, template=None, largura=None, altura=None, tamanho_base=None):
     """Legenda palavra a palavra no estilo do template de edição (templates_edicao.py).
     Animações: pop, salto, karaokê, marca-texto, neon, suave ou nenhuma. Com 'falantes'
-    (podcast), cada pessoa tem uma cor. textos_extra = [(ini, fim, texto, estilo)]."""
+    (podcast), cada pessoa tem uma cor. textos_extra = [(ini, fim, texto, estilo)].
+    largura/altura: tela do vídeo (padrão 1080x1920 dos cortes; a aba Legendar usa a do vídeo)."""
     import templates_edicao as te
     tpl = template if isinstance(template, dict) else te.resolver(template or cortes.TEMPLATE_EDICAO)
     lg = tpl["legenda"]
+    tela_l, tela_a = int(largura or cortes.LARGURA), int(altura or cortes.ALTURA)
     fonte_leg = lg.get("fonte") or cortes.FONTE_LEGENDA
-    tam = te.tamanho_legenda(cortes.TAMANHO_LEGENDA, lg)
+    tam = te.tamanho_legenda(cortes.TAMANHO_LEGENDA if tamanho_base is None else tamanho_base, lg)
     contorno = int(lg.get("contorno", 7))
     sombra = int(lg.get("sombra", 3))
     cor_cont = cortes.cor_ass(lg.get("cor_contorno") or "#000000")
@@ -142,8 +144,8 @@ def gerar_ass(palavras, textos, destino: Path, duracao=0.0, legenda=True, falant
     marca_pos = "9,40,36,70" if margem_leg < 150 else "3,40,36,36"
     cab = f"""[Script Info]
 ScriptType: v4.00+
-PlayResX: {cortes.LARGURA}
-PlayResY: {cortes.ALTURA}
+PlayResX: {tela_l}
+PlayResY: {tela_a}
 WrapStyle: 0
 
 [V4+ Styles]
@@ -183,7 +185,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     medir = medidor_legenda(fonte_leg, tam) if blocos else None
     pico = {"pop": 1.08, "salto": 1.12}.get(animacao, 1.0)
     ativa = esc + (10 if animacao == "salto" else 0)
-    limite = (cortes.LARGURA - 120 - 2 * contorno - sombra - (20 if animacao == "marca_texto" else 0)) * 0.97
+    limite = (tela_l - 120 - 2 * contorno - sombra - (20 if animacao == "marca_texto" else 0)) * 0.97
     if medir:          # legenda sempre numa linha só, sempre na mesma altura (sem pular)
         blocos = caber_numa_linha(blocos, medir, limite, txt, ativa, pico)
     for bi, bloco in enumerate(blocos):

@@ -44,6 +44,7 @@ duas vezes.
 | Resultados | `resultados.py`, `historico_metricas.py`, `estatistica_editorial.py` | Métricas, aprendizado, A/B, horários. |
 | Infraestrutura | `infraestrutura.py`, `recursos.py`, `cofre.py`, `atualizar.py`, `qualidade.py` | Gravação atômica e travas, limites de recursos, segredos (DPAPI), atualização, inspeção de mídia. |
 | Instalação | `doutor.py`, `instalar.ps1`, `_python.bat`, `setup.iss`, `gerar_setup.ps1` | Exame do PC e consertos (Python 3.12 em `.venv`, bibliotecas, Visual C++, ffmpeg, PATH), leitura de erros com regras e IA restrita a consertos pré-definidos. |
+| Legendar | `legendar.py`, `aba_legendar.py` | Aba que só legenda um vídeo pronto: transcrição, IA (correção com a trava + ênfase), revisão por frase com redistribuição de tempo, legenda na tela do próprio vídeo (PlayRes com lado menor = 1080) e render com áudio copiado. |
 | Downloads | `baixador.py` | Opções do yt-dlp com o desafio do YouTube resolvido (yt-dlp-ejs + Node/Deno), download só dos pedaços do trecho pelo índice sidx, reserva com limite de tempo e atualização automática do yt-dlp. |
 | Desempenho | `desempenho.py` | Teste de velocidade, tempos por etapa (`analises/tempos.jsonl`), espaço em disco e limpeza dos projetos de edição. |
 | Interface | `interface.py`, `previa.py` | Interface Tkinter e prévia visual. |

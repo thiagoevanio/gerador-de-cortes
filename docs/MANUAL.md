@@ -53,6 +53,22 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
 - **Topo:** escolha entre *Automático* (thumbnail do YouTube ou um frame), *Estilo thumbnail ✨* (a IA escolhe o frame e ele ganha zoom, cores fortes e um emoji) ou *Frame escolhido pela IA*.
 - **Perfil:** *Automático (pelo canal)* escolhe o perfil sozinho pelo canal de origem, ou você força um.
 
+### 📝 Legendar (só a legenda num vídeo já editado)
+Pra quando o vídeo já está pronto e você só quer a legenda — o programa **não corta, não muda o formato e
+não mexe no áudio**. Serve pra vídeo vertical, horizontal ou quadrado (a legenda é desenhada na tela do
+próprio vídeo, sem esticar a fonte) e mantém o fps original (60 fps continua 60).
+1. **📂 Escolher vídeo** — aparece o tamanho, o formato, a duração e o fps. Vídeo sem áudio é avisado.
+2. **Estilo** — os mesmos templates dos cortes, posição (10 = colada no rodapé, ▼▲ de 10 em 10), tamanho e
+   palavras por vez. A **prévia** ao lado mostra um quadro do SEU vídeo com a legenda; **↻ outro quadro**
+   troca o momento.
+3. **📝 LEGENDAR** — transcreve (Whisper), a IA corrige nomes e escolhe as palavras-chave coloridas (opções
+   ligáveis) e tira "hum/éé" da legenda.
+4. Com **Revisar o texto antes de queimar** ligado, o texto aparece na caixa, **uma frase por linha** com o
+   tempo na frente. Corrija o que quiser: se mudar a quantidade de palavras, o tempo da frase é redividido
+   sozinho; pra tirar uma frase, deixe só o `[tempo]` dela. Depois **🔥 QUEIMAR LEGENDA NO VÍDEO**.
+5. Sai `nome_legendado.mp4` + `nome_legendado.srt` **ao lado do original** (o original não é tocado;
+   legendando de novo vira `_legendado_2`). Botões **▶ Abrir vídeo** e **📁 Pasta** no fim.
+
 ### 🔥 Tendências (vídeos bombando agora)
 - Coloque seus **nichos** (podcast, react, futebol, BBB...) e clique em **BUSCAR EM ALTA**.
 - **Só nos canais:** escolha esse modo e digite os canais separados por vírgula (`@flowpodcast`, o link do canal ou só o nome). Aparecem **só os vídeos desses canais** no período escolhido, sem assuntos do Brasil nem vídeos aleatórios. Se você digitar um `@` ou um link, o modo troca sozinho.

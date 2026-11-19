@@ -2,6 +2,24 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.24 — Aba 📝 Legendar
+
+Nova aba pra **só legendar um vídeo que já está editado** no PC — sem cortar, sem mudar o formato, sem
+mexer no áudio.
+- Vertical, horizontal ou quadrado: a legenda é desenhada na tela do próprio vídeo (o lado menor vale
+  1080, então tamanho e posição significam o mesmo em qualquer formato) e o fps original é mantido.
+- **Prévia no seu vídeo**: um quadro de verdade com a legenda no template escolhido (↻ troca o quadro).
+- Os mesmos templates dos cortes, já com a legenda que não pula nem pisca (3.23); posição, tamanho e
+  palavras por vez ajustáveis.
+- IA opcional: corrige nomes (com a trava contra palavra duplicada) e escolhe as palavras-chave coloridas
+  (só palavra forte, no máximo 1 a cada ~8). Vídeo longo vai em pedaços.
+- **Revisão antes de queimar**: o texto aparece uma frase por linha, com o tempo; mudou a quantidade de
+  palavras, o tempo da frase é redividido sozinho; apagar o texto da linha tira a frase.
+- Tira "hum/éé" da legenda (o vídeo não muda). Seu @ é opcional.
+- Sai `nome_legendado.mp4` + `.srt` ao lado do original (nunca sobrescreve). Áudio copiado como está
+  (só vira AAC se o formato não couber num .mp4). Passa pela revisão técnica antes de salvar.
+- `gerar_ass` aceita a tela do vídeo (`largura`, `altura`) e o tamanho base.
+
 ## 3.23 — Legenda que não pula nem pisca
 
 **Legenda pulando pra cima e voltando (2 causas, as duas corrigidas)**
