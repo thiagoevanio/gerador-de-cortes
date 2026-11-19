@@ -2,6 +2,17 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.26.1 — Reels sempre do mais recente pro mais antigo
+
+- A pasta do perfil fica em ordem: `001 - 2026-11-19 - ID.mp4` (o **001 é sempre o mais recente**; chegou
+  reel novo, a pasta é renumerada). A "data de modificação" de cada arquivo vira a data da postagem — no
+  Windows fica em ordem por nome ou por data. Antes os arquivos tinham só o código do reel e a pasta
+  parecia embaralhada (o download já era do mais novo pro mais velho).
+- Reels **fixados** no topo do perfil (que podem ser antigos) vão pro fim da fila e não ocupam a vaga
+  dos mais recentes quando você pede 12, 30...
+- A data e a hora exatas da postagem ficam no `reels.json`. Pastas baixadas antes são reorganizadas no
+  próximo download (os já baixados continuam sem baixar de novo).
+
 ## 3.26 — 📥 Reels do Instagram (sem marca d'água)
 
 - Baixa os reels de um perfil no **arquivo original** que o Instagram guarda (o mesmo que o cobalt faz):

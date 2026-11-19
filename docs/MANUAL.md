@@ -78,8 +78,10 @@ Botão **📥 Instagram** na aba Corte: digite o **@** e quantos reels (12, 30, 
 juntando os links e o programa baixa um por um, no **arquivo original — sem a marca d'água** que o botão
 "baixar" do app coloca. Também dá pra começar direto no Instagram: em qualquer perfil aparece o painel
 **Baixar reels**.
-- Salva em `reels_instagram/@perfil` (botão **📁 Pasta dos reels**), com um `reels.json` com a legenda e a
-  data de cada um. Os que você já baixou não baixam de novo.
+- Salva em `reels_instagram/@perfil` (botão **📁 Pasta dos reels**) **do mais recente pro mais antigo**:
+  `001 - 2026-11-19 - ID.mp4` é sempre o mais novo (reel novo renumera a pasta), e a data do arquivo é a da
+  postagem. Reels fixados no topo do perfil vão pro fim. Tem um `reels.json` com a legenda, a data e a hora
+  de cada um. Os que você já baixou não baixam de novo.
 - **Entre na sua conta do Instagram no Chrome**: sem login ele só mostra uns 12 reels. Conta privada só
   se você seguir. Deixe a aba do Instagram na frente enquanto ela junta os links.
 - Se o Instagram começar a bloquear, o programa para e avisa (o que já baixou fica) — tente o resto mais

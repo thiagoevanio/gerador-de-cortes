@@ -95,6 +95,32 @@ class Baixar(unittest.TestCase):
         fim = _esperar(t["id"])
         self.assertEqual(fim["msg"], "Parado por você.")
 
+    def test_pasta_do_mais_recente_pro_mais_antigo(self):
+        import os
+        pasta = Path(self.dir.name) / "fulano"
+        pasta.mkdir()
+        # baixados em ordem qualquer; o índice tem a data (e às vezes a hora) de cada um
+        indice = {"VELHO1": {"data": "20261101"}, "NOVO01": {"timestamp": 1795100000},
+                  "MEIO01": {"data": "20261110"}, "MEIO02": {"data": "20261110"}}
+        for rid in indice:
+            (pasta / f"{rid}.mp4").write_bytes(b"0")
+        (pasta / "reels.json").write_text(json.dumps(indice), encoding="utf-8")
+        self.assertEqual(instagram.organizar(pasta), 4)
+        nomes = sorted(p.name for p in pasta.glob("*.mp4"))
+        self.assertEqual([n.split(" - ")[-1] for n in nomes], ["NOVO01.mp4", "MEIO01.mp4", "MEIO02.mp4", "VELHO1.mp4"])
+        self.assertTrue(nomes[0].startswith("001 - "))
+        por_data = [p.name[:3] for p in sorted(pasta.glob("*.mp4"), key=os.path.getmtime, reverse=True)]
+        self.assertEqual(por_data, ["001", "002", "003", "004"])   # por "data de modificação" também
+        self.assertEqual(instagram._ja_baixados(pasta), set(indice))  # nome novo não baixa de novo
+        self.assertEqual(instagram.arquivo_do_reel(pasta, "MEIO02").name, nomes[2])
+        # chegou um reel mais novo: vira o 001 e os outros descem
+        indice2 = json.loads((pasta / "reels.json").read_text(encoding="utf-8"))
+        indice2["NOVISSIMO"] = {"timestamp": 1795200000}
+        (pasta / "NOVISSIMO.mp4").write_bytes(b"0")
+        (pasta / "reels.json").write_text(json.dumps(indice2), encoding="utf-8")
+        instagram.organizar(pasta)
+        self.assertTrue(sorted(p.name for p in pasta.glob("*.mp4"))[0].endswith(" - NOVISSIMO.mp4"))
+
     def test_sem_links(self):
         with self.assertRaises(ValueError):
             instagram.iniciar("fulano", ["/fulano/", "nada"])

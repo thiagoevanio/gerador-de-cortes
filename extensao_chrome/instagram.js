@@ -48,19 +48,23 @@
     return /^[A-Za-z0-9._]{1,30}$/.test(partes[0]) ? partes[0] : null;
   }
   const naAbaReels = () => location.pathname.split("/").filter(Boolean)[1] === "reels";
+  // reel FIXADO no topo do perfil (pode ser antigo): ícone de alfinete
+  const fixado = (a) => !!a.querySelector('svg[aria-label*="ixad" i], svg[aria-label*="pinned" i], svg[aria-label*="pin " i]');
   function linksDeReels(u) {
     const achados = [];
     document.querySelectorAll('a[href*="/reel/"]').forEach((a) => {
       const h = a.getAttribute("href") || "";
       // só os reels DESTE perfil (a página também mostra sugestões de outras contas)
       if (/\/reel\/[A-Za-z0-9_-]{5,}/.test(h) && (!/^\/[^/]+\/reel\//.test(h) || h.toLowerCase().startsWith(`/${u.toLowerCase()}/`)))
-        achados.push(h);
+        achados.push({ h, fixado: fixado(a) });
     });
     return achados;
   }
 
   async function juntar(u, limite) {
-    const links = new Set();
+    // do mais recente pro mais antigo: os fixados (que o Instagram põe no topo) vão pro fim
+    const links = new Set(), fixados = new Set();
+    const guardar = (l) => (l.fixado ? fixados : links).add(l.h);
     let semNovos = 0;
     window.scrollTo(0, 0);
     await dormir(800);
@@ -71,15 +75,15 @@
         continue;
       }
       const antes = links.size;
-      linksDeReels(u).forEach((l) => links.add(l));
+      linksDeReels(u).forEach(guardar);
       st(`🔎 Juntando os reels da página… ${Math.min(links.size, limite)}${limite < 500 ? ` de ${limite}` : ""}`, "#ffd400");
       // vai até o fim da página: é chegando lá que o Instagram carrega a próxima leva
       window.scrollTo(0, document.documentElement.scrollHeight);
       await dormir(1300 + Math.random() * 900);            // espera o Instagram carregar mais
-      linksDeReels(u).forEach((l) => links.add(l));
+      linksDeReels(u).forEach(guardar);
       semNovos = links.size === antes ? semNovos + 1 : 0;
     }
-    return [...links].slice(0, limite);
+    return [...links, ...[...fixados].filter((h) => !links.has(h))].slice(0, limite);
   }
 
   async function baixar() {

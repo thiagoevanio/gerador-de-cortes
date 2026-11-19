@@ -48,8 +48,70 @@ def ids_dos_links(links, limite=500) -> list[str]:
     return vistos
 
 
+def arquivo_do_reel(pasta: Path, rid: str):
+    """O .mp4 desse reel na pasta: 'ID.mp4' (jeito antigo) ou '007 - 2026-11-19 - ID.mp4'."""
+    antigo = pasta / f"{rid}.mp4"
+    if antigo.exists():
+        return antigo
+    return next((p for p in pasta.glob("*.mp4") if p.name.endswith(f" - {rid}.mp4")), None)
+
+
 def _ja_baixados(pasta: Path) -> set[str]:
-    return {p.stem for p in pasta.glob("*.mp4")}
+    ids = set()
+    for p in pasta.glob("*.mp4"):
+        ids.add(p.stem.rsplit(" - ", 1)[-1])
+    return ids
+
+
+def _quando(dados: dict) -> float:
+    """Momento da postagem (segundos). Sem a hora exata, usa o dia."""
+    if dados.get("timestamp"):
+        try:
+            return float(dados["timestamp"])
+        except (TypeError, ValueError):
+            pass
+    try:
+        import datetime
+        return datetime.datetime.strptime(str(dados.get("data")), "%Y%m%d").timestamp()
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def organizar(pasta: Path) -> int:
+    """Renomeia os reels da pasta do MAIS RECENTE pro mais antigo: '001 - 2026-11-19 - ID.mp4' (o 001 é
+    sempre o mais novo; chegou reel novo, renumera). Também põe a data de modificação do arquivo = data da
+    postagem. Assim a pasta fica em ordem no Windows, por nome ou por data. Devolve quantos organizou."""
+    import os
+    indice = _indice(pasta)
+    presentes = []
+    for ordem, (rid, dados) in enumerate(indice.items()):
+        arq = arquivo_do_reel(pasta, rid)
+        if arq:
+            presentes.append((-_quando(dados), ordem, rid, arq))   # empate: a ordem em que veio (mais nova antes)
+    presentes.sort()
+    largura = max(3, len(str(len(presentes))))
+    temporarios = []
+    for _q, _o, rid, arq in presentes:                 # 2 passos: nome temporário, depois o final (sem colisão)
+        tmp = arq.with_name(f"~{uuid.uuid4().hex[:8]}_{rid}.mp4")
+        arq.rename(tmp)
+        temporarios.append((rid, tmp))
+    for n, (rid, tmp) in enumerate(temporarios, 1):
+        dados = indice[rid]
+        quando = _quando(dados)
+        dia = time.strftime("%Y-%m-%d", time.localtime(quando)) if quando else "sem-data"
+        final = pasta / f"{n:0{largura}d} - {dia} - {rid}.mp4"
+        tmp.rename(final)
+        dados["arquivo"] = final.name
+        if quando:
+            if not dados.get("timestamp"):         # só o dia: meio-dia, um segundo a menos por posição
+                quando += 43200 - n                # (no mesmo dia, o mais novo continua na frente)
+            try:
+                os.utime(final, (quando, quando))
+            except OSError:
+                pass
+    if presentes:
+        (pasta / "reels.json").write_text(json.dumps(indice, ensure_ascii=False, indent=1), encoding="utf-8")
+    return len(presentes)
 
 
 def _indice(pasta: Path) -> dict:
@@ -75,6 +137,7 @@ def baixar_um(rid: str, pasta: Path) -> dict:
         arq = achados[0]
     return {"id": rid, "arquivo": arq.name, "url": f"https://www.instagram.com/reel/{rid}/",
             "legenda": (info.get("description") or "")[:2000], "data": info.get("upload_date"),
+            "timestamp": info.get("timestamp"),
             "duracao": info.get("duration"), "largura": info.get("width"), "altura": info.get("height")}
 
 
@@ -157,6 +220,11 @@ def _rodar(trabalho, ids, pasta, baixar, pausa):
     except Exception as e:                               # noqa: BLE001
         trabalho.update(estado="erro", msg=str(e)[:300])
     finally:
+        try:
+            trabalho["atual"] = "organizando a pasta do mais recente pro mais antigo..."
+            organizar(pasta)
+        except OSError:
+            pass                                         # arquivo aberto no player: organiza na próxima
         trabalho["fim"] = time.time()
         trabalho["atual"] = ""
         _PARAR.discard(trabalho["id"])
