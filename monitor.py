@@ -946,6 +946,21 @@ class Painel(BaseHTTPRequestHandler):
                 return self._enviar(400, '{"ok":false,"msg":"Pedido inválido."}')
             import bot
             return self._enviar(200, json.dumps(bot.responder(pedido), ensure_ascii=False))
+        if url.path == "/ia_momentos":                # 🤖 IA corta os melhores momentos (YouTube)
+            try:
+                tam = int(self.headers.get("Content-Length") or 0)
+                if not 0 < tam <= 200_000:
+                    return self._enviar(413, '{"ok":false,"msg":"Pedido grande demais."}')
+                pedido = json.loads(self.rfile.read(tam).decode("utf-8"))
+            except (ValueError, json.JSONDecodeError):
+                return self._enviar(400, '{"ok":false,"msg":"Pedido inválido."}')
+            import ia_youtube
+            try:
+                trabalho = ia_youtube.iniciar(pedido, enfileirar_cortes_ia)
+            except ValueError as e:
+                return self._enviar(200, json.dumps({"ok": False, "msg": str(e)}, ensure_ascii=False))
+            log(f"🤖 IA escolhendo {trabalho['n']} momento(s) de {trabalho['url'][:60]} (pedido da extensão)")
+            return self._enviar(200, json.dumps({"ok": True, "trabalho": trabalho}, ensure_ascii=False))
         if url.path == "/chat":                       # mensagens do chat lidas pela extensão
             try:
                 tam = int(self.headers.get("Content-Length") or 0)
@@ -978,8 +993,10 @@ class Painel(BaseHTTPRequestHandler):
             return self._enviar(200, json.dumps(dict(token=TOKEN_SESSAO)))
         if url.path == "/status":
             import bot
+            import ia_youtube
             return self._enviar(200, json.dumps(dict(ESTADO_PAINEL, agora=time.time(), ia=bot.status_ia(),
-                                                     versao=VERSAO_PROGRAMA), ensure_ascii=False))
+                                                     versao=VERSAO_PROGRAMA, ia_momentos=ia_youtube.resumo()),
+                                                ensure_ascii=False))
         if not getattr(self, '_post_autorizado', False):
             return self._enviar(405, '{"ok":false,"msg":"Use POST com a sessão do programa."}')
         if url.path == "/gerar":
@@ -1028,6 +1045,16 @@ class Painel(BaseHTTPRequestHandler):
         self._enviar(404, json.dumps({"ok": False}))
 
 
+def enfileirar_cortes_ia(itens, espera=100):
+    """Os momentos que a IA escolheu (ia_youtube.py) entram na fila do monitor como cortes."""
+    cmd = {"acao": "ia_lote", "itens": list(itens), "resposta": queue.Queue()}
+    COMANDOS.put(cmd)
+    try:
+        return cmd["resposta"].get(timeout=espera)
+    except queue.Empty:
+        return {"ok": False, "msg": "O monitor demorou pra responder."}
+
+
 def iniciar_painel():
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", PORTA), Painel)
@@ -1048,6 +1075,14 @@ def tratar_comandos(gravacoes, cfg, agendados, fila_manual=None, fila=None):
         except queue.Empty:
             return
         acao, resp = cmd["acao"], cmd["resposta"]
+        if acao == "ia_lote":                         # momentos escolhidos pela IA (extensão do YouTube)
+            for it in cmd["itens"]:
+                adicionar(fila, {"manual": True, "prioridade": 90, "tipo": "corte", "fonte": it["url"],
+                                 "inicio": it["inicio"], "fim": it["fim"], "topo": "auto", "pasta": "manual",
+                                 "meta": {}, "contexto": f"Momento escolhido pela IA: {it.get('motivo', '')}"[:300]})
+            resp.put({"ok": True, "msg": f"{len(cmd['itens'])} corte(s) na fila."})
+            log(f"🤖 {len(cmd['itens'])} momento(s) escolhidos pela IA foram pra fila.")
+            continue
         if acao == "gerar":
             adicionar(fila, {"manual": True, "prioridade": 100, "tipo": "corte", "fonte": cmd["url"], "inicio": cmd["ini"],
                                 "fim": cmd["fim"], "topo": "auto", "pasta": "manual",

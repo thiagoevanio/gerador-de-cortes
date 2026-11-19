@@ -132,6 +132,13 @@ próprio vídeo, sem esticar a fonte) e mantém o fps original (60 fps continua 
     - **Kick:** o chat lido pela extensão também passa a ser usado pra achar os picos automaticamente.
   - **YouTube:**
     - **⏱ Início**, **⏱ Fim**, **↶ últimos 30s/60s** e **✂ GERAR** (Alt+I, Alt+F, Alt+G), com a duração na hora e **▶ assistir o trecho**.
+    - **🤖 IA corta os melhores momentos** (topo da aba Momentos; a aba Cortar tem um atalho): escolha
+      **quantos cortes** (1 a 5) e a **duração** (30 a 90 s) e clique em **ACHAR E CORTAR SOZINHA**. A IA
+      ouve o vídeo, usa o **gráfico de replays** e os **minutos citados nos comentários** como pista, escolhe
+      os trechos com começo e fim nas frases certas e manda pra fila. O painel mostra em que etapa está e,
+      no fim, a lista dos cortes (minutos, nota e por quê; ▶ vai até o trecho). **O Chrome avisa quando
+      cada corte fica pronto.** Leva uns minutos (ela ouve vários trechos do vídeo); pode fechar a aba que o
+      trabalho continua no programa. Dica: role a página até os comentários antes, pra ela ler mais pistas.
     - **Momentos:** os **picos do gráfico "mais assistidos de novo"** do YouTube e os **minutos citados nos comentários** (4:05, 4:08 e 4:10 viram um lance só). ▶ vai até o ponto e ✂ marca 1 minuto em volta.
   - **🤖 Bot:** um assistente dentro do painel. Botões prontos (**Vale cortar agora?**, **O que rolou?**, **Sugere um título**, **Melhores momentos**) ou pergunte o que quiser.
     - **Com IA** (a que estiver em Contas & IA: Claude, Codex, Gemini ou Local): lê o chat recente, os números do chat, os momentos detectados, o título e os comentários, e responde com **nota de 0 a 10**, o **gancho da faixa** (com botão de copiar), títulos e **botões de ação** (✂ cortar 60s, ⏱ marcar, ▶ ir para 4:05, ✂ marcar trecho).

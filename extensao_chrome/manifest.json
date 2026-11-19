@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cortes 9:16",
-  "version": "3.0",
+  "version": "3.1",
   "description": "Grava a live que você abrir, lê o chat, acha os melhores momentos e corta com um clique. Bot com IA embutido (Twitch, Kick e YouTube).",
   "permissions": [
     "notifications",

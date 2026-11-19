@@ -2,6 +2,22 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.25 — 🤖 IA corta os melhores momentos (extensão, YouTube)
+
+- Novo cartão no topo da aba **Momentos** do painel do YouTube: escolha quantos cortes (1-5) e a
+  duração (30-90 s) e clique em **ACHAR E CORTAR SOZINHA**. Atalho na aba Cortar.
+- A IA usa o "achar momentos" do programa (ouve os trechos candidatos, começo e fim nas frases certas) e
+  agora recebe o que só a extensão vê na página: os **minutos citados nos comentários** viram candidatos
+  fortes (como o chat de uma live, com o texto dos comentários indo pra IA) e os **picos do gráfico de
+  replays** completam o que o yt-dlp não trouxe. Aqui a IA sempre confere (nada de cortar só pelo gráfico
+  com 60 s fixos).
+- Os cortes vão pra fila do monitor (prioridade alta) com o motivo da IA como contexto; o painel mostra a
+  etapa em andamento e, no fim, a lista dos cortes com nota e motivo. Recarregou a página? O andamento
+  volta. Um trabalho por vez (achar momentos é pesado no processador).
+- Testado com um vídeo real de 40 min: com um comentário citando 33:45, a IA escolheu exatamente esse
+  lance (33:30–34:35, nota 7) e mais um trecho; ~7 min no total.
+- Extensão 3.1 (recarregue em chrome://extensions).
+
 ## 3.24.1 — Assistir antes de queimar
 
 - Aba Legendar: **▶ Assistir com a legenda** gera em segundos uma versão leve (lado menor 540 px) com o

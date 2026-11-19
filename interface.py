@@ -1831,7 +1831,8 @@ class App(tk.Tk):
                             "• depois de cortar, escreva o que aconteceu (opcional) — a IA usa\n"
                             "• o Chrome avisa quando o corte fica pronto\n\n"
                             "No YouTube: ⏱ Início, ⏱ Fim e ✂ GERAR (Alt+I, Alt+F, Alt+G), e a aba\n"
-                            "Momentos mostra os trechos mais revistos e os minutos citados nos comentários.\n\n"
+                            "Momentos mostra os trechos mais revistos e os minutos citados nos comentários.\n"
+                            "🤖 ACHAR E CORTAR SOZINHA: a IA escolhe os melhores momentos e manda gerar.\n\n"
                             "🤖 Aba Bot: pergunte 'vale cortar agora?', peça título ou os melhores\n"
                             "momentos. Usa a IA de Contas & IA (sem IA, responde com os números do chat).\n"
                             "Clique no ícone da extensão pra ver as lives, os cortes prontos e as opções.")

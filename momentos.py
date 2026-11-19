@@ -180,13 +180,18 @@ def candidatos_por_texto(segmentos, total, dur, n=5):
     return escolhidos
 
 
-def achar_momentos(fonte, n=3, dur=60, log=print, contexto_titulo="", completo=False, chat_arquivo=None):
+def achar_momentos(fonte, n=3, dur=60, log=print, contexto_titulo="", completo=False, chat_arquivo=None,
+                   dicas=None, usar_ia=False):
     """
     Devolve (lista de momentos, meta). Cada momento: {"inicio", "fim", "motivo"}.
     'fonte' pode ser link (YouTube/Twitch VOD) ou arquivo de vídeo do PC.
     completo=False (robô / aba Corte): econômico — usa o gráfico "mais repetidos" de graça quando
     existe e no máximo 8 candidatos. completo=True (Central de edição): análise detalhada.
+    dicas (extensão do YouTube) = {"comentarios": [{"t", "n", "textos"}], "picos": [segundos]}: os minutos
+    citados nos comentários entram como candidatos fortes (igual ao chat de uma live) e o texto deles vai
+    pra IA. usar_ia=True: a IA sempre confere (nunca corta só pelo gráfico, com 60 s fixos).
     """
+    dicas = dicas if isinstance(dicas, dict) else {}
     cfg = cortes.carregar_config()
     completo = completo or cfg.get("analise_ampla", False)
     inicios = []
@@ -198,7 +203,10 @@ def achar_momentos(fonte, n=3, dur=60, log=print, contexto_titulo="", completo=F
         meta = {"titulo": info.get("title", ""), "canal": info.get("uploader", "")}
         duracao = info.get("duration") or 0
         inicios = picos_grafico(info.get("heatmap"), duracao, dur, n)
-        if inicios and not completo and not cfg.get("analise_heatmap_ia", False):
+        for s in dicas.get("picos") or []:            # picos lidos na página (quando o yt-dlp não trouxe)
+            if all(abs(s - x) > dur * 0.6 for x in inicios):
+                inicios.append(max(0.0, float(s) - dur * 0.3))
+        if inicios and not completo and not usar_ia and not cfg.get("analise_heatmap_ia", False):
             log("📈 Usando o gráfico de 'mais repetidos' do YouTube (sem gastar IA).")
             return [{"inicio": s, "fim": s + dur, "motivo": "trecho mais repetido pelo público",
                      "evidencias": {"motivo": "gráfico de mais repetidos do YouTube", "candidato": [s, s + dur]}}
@@ -245,6 +253,19 @@ def achar_momentos(fonte, n=3, dur=60, log=print, contexto_titulo="", completo=F
             meta['transcricao_completa'] = segmentos
             textuais = candidatos_por_texto(segmentos, total, dur)
             trechos = textuais + [t for t in trechos if all(abs(t[0]-a) >= dur*0.6 for a,_ in textuais)]
+        # minutos citados nos comentários: o público dizendo onde está o lance (sinal forte, vem primeiro)
+        coms = sorted([c for c in dicas.get("comentarios") or [] if 0 <= c["t"] < total],
+                      key=lambda c: -c.get("n", 1))[:5]
+        do_coment = []
+        for c in coms:
+            cand = (max(0.0, c["t"] - 15), min(total, c["t"] + dur + 10))
+            if cand[1] - cand[0] >= 10 and all(abs(cand[0] - a) >= dur * 0.5 for a, _ in do_coment):
+                do_coment.append(cand)
+                citacoes = " | ".join(str(x)[:120] for x in (c.get("textos") or [])[:3])
+                resumo_chat[cand] = f"{c.get('n', 1)} comentário(s) citam esse minuto: {citacoes}"
+        if do_coment:
+            log(f"   💬 {len(do_coment)} momento(s) citados nos comentários do vídeo.")
+            trechos = do_coment + [t for t in trechos if all(t[1] <= a or t[0] >= b for a, b in do_coment)]
         # Replays são candidatos, e não uma decisão final. Inclui margens de contexto.
         sementes = [(max(0, x - 12), min(total, x + dur + 18)) for x in inicios]
         # Amostragem de cobertura permite encontrar falas calmas além dos picos de volume.
@@ -253,7 +274,7 @@ def achar_momentos(fonte, n=3, dur=60, log=print, contexto_titulo="", completo=F
         for candidato in sementes + cobertura:
             if candidato[1] - candidato[0] >= 10 and all(abs(candidato[0] - a) >= dur * 0.6 for a, _ in trechos):
                 trechos.append(candidato)
-        trechos = trechos[:16 if completo else 8]
+        trechos = trechos[:16 if completo else (10 if dicas else 8)]
         log(f"   {len(trechos)} candidatos encontrados.")
         textos, frases = _transcrever_frases(audio, trechos, log, dica=cortes.dica_transcricao(meta))
     finally:
