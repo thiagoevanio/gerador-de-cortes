@@ -302,6 +302,7 @@ class App(tk.Tk):
         self.e_link = self._campo(l1)
         self.e_link.pack(side="left", fill="x", expand=True, ipady=5)
         self._botao(l1, "📁 Vídeo do PC", self._escolher_video).pack(side="left", padx=(8, 0))
+        self._botao(l1, "📥 Instagram", self._instagram_reels).pack(side="left", padx=(6, 0))
         self.chat_arquivo = None
         self.b_chat = self._botao(l1, "💬 Chat", self._escolher_chat)
         self.b_chat.pack(side="left", padx=(6, 0))
@@ -1786,6 +1787,57 @@ class App(tk.Tk):
                 nomes += [os.path.join(base, "Microsoft", "Edge", "Application", "msedge.exe"),
                           os.path.join(base, "Google", "Chrome", "Application", "chrome.exe")]
         return next((n for n in nomes if n and os.path.exists(n)), None)
+
+    def _instagram_reels(self):
+        """📥 Reels do Instagram: digita o @, o perfil abre no Chrome e a extensão junta e baixa os reels
+        (arquivo original, sem marca d'água). O Instagram só lista o perfil dentro do navegador."""
+        import instagram
+        jan = tk.Toplevel(self)
+        jan.title("Reels do Instagram")
+        jan.configure(bg=CARTAO, padx=16, pady=12)
+        jan.transient(self)
+        jan.resizable(False, False)
+        tk.Label(jan, text="📥 Baixar os reels de um perfil", bg=CARTAO, fg=TEXTO,
+                 font=("Segoe UI", 12, "bold")).pack(anchor="w")
+        tk.Label(jan, text="Arquivo original, sem a marca d'água do app. Os que você já baixou não baixam de novo.",
+                 bg=CARTAO, fg=CINZA, font=("Segoe UI", 9)).pack(anchor="w", pady=(0, 8))
+        linha = tk.Frame(jan, bg=CARTAO)
+        linha.pack(fill="x")
+        tk.Label(linha, text="@", bg=CARTAO, fg=TEXTO, font=("Segoe UI", 12, "bold")).pack(side="left")
+        campo = self._campo(linha)
+        campo.pack(side="left", fill="x", expand=True, ipady=4)
+        campo.focus_set()
+        tk.Label(linha, text="  Quantos:", bg=CARTAO, fg=TEXTO, font=("Segoe UI", 10)).pack(side="left")
+        opcoes = {"12": 12, "30": 30, "60": 60, "150": 150, "Todos": 500}
+        v_qtd = tk.StringVar(value="30")
+        ttk.Combobox(linha, textvariable=v_qtd, values=list(opcoes), state="readonly", width=7).pack(side="left", padx=(6, 0))
+        aviso = tk.Label(jan, text="", bg=CARTAO, fg=CINZA, font=("Segoe UI", 9), justify="left", wraplength=470)
+        aviso.pack(anchor="w", pady=(8, 0))
+
+        def abrir():
+            try:
+                u = instagram.usuario_valido(campo.get())
+            except ValueError:
+                return aviso.configure(text="Digite um @ válido (letras, números, ponto e _).", fg="#FF6B6B")
+            if not (self.monitor_proc and self.monitor_proc.poll() is None):
+                self._alternar_monitor()                 # a extensão manda os links pro monitor
+            url = f"https://www.instagram.com/{u}/reels/#c916baixar={opcoes.get(v_qtd.get(), 30)}"
+            exe = self.navegador_app()
+            if exe and exe.lower().endswith("chrome.exe"):
+                subprocess.Popen([exe, url], creationflags=cortes.SEM_JANELA)
+            else:
+                import webbrowser
+                webbrowser.open(url)
+            aviso.configure(fg=VERDE, text=f"Abrindo @{u} no navegador… a extensão rola a página, junta os reels e "
+                                           "o programa baixa. Acompanhe no painel da extensão (canto da página).")
+        b = tk.Frame(jan, bg=CARTAO)
+        b.pack(fill="x", pady=(10, 0))
+        self._botao(b, "⬇ Abrir no Chrome e baixar", abrir, cor=VERMELHO, cor_txt="white").pack(side="left")
+        self._botao(b, "📁 Pasta dos reels", lambda: (instagram.pasta_base().mkdir(parents=True, exist_ok=True),
+                                                     self._abrir(instagram.pasta_base()))).pack(side="left", padx=(6, 0))
+        tk.Label(jan, text="Precisa da extensão Cortes 9:16 no Chrome. Conta privada: só se você seguir.",
+                 bg=CARTAO, fg=CINZA, font=("Segoe UI", 8)).pack(anchor="w", pady=(8, 0))
+        campo.bind("<Return>", lambda e: abrir())
 
     def _abrir_mini(self, sozinho=False):
         """Abre a live (a que o robô está gravando) numa janela pequena no canto direito da tela."""

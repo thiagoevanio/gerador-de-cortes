@@ -11,6 +11,7 @@
     enviar: '<svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>',
     copiar: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
     limpar: '<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+    baixar: '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
   };
 
   const CSS = `
@@ -185,7 +186,7 @@
     gravar(chave, valor) { try { chrome.storage.local.set({ [chave]: valor }); } catch (e) {} },
   };
 
-  const PADRAO_CFG = { twitch: true, kick: true, youtube: true, botAuto: true, botIa: true };
+  const PADRAO_CFG = { twitch: true, kick: true, youtube: true, instagram: true, botAuto: true, botIa: true };
   async function config() { return { ...PADRAO_CFG, ...(await guardar.ler("cfg", {})) }; }
   function aoMudarConfig(fn) {
     try { chrome.storage.onChanged.addListener((m) => { if (m.cfg) fn({ ...PADRAO_CFG, ...(m.cfg.newValue || {}) }); }); } catch (e) {}

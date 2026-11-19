@@ -1,5 +1,5 @@
 // Popup do ícone da extensão: estado do programa, IA, lives gravando, cortes prontos e configurações.
-const PADRAO = { twitch: true, kick: true, youtube: true, botAuto: true, botIa: true };
+const PADRAO = { twitch: true, kick: true, youtube: true, instagram: true, botAuto: true, botIa: true };
 const $ = (s) => document.querySelector(s);
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 

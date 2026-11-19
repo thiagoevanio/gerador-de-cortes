@@ -72,6 +72,21 @@ próprio vídeo, sem esticar a fonte) e mantém o fps original (60 fps continua 
 5. Sai `nome_legendado.mp4` + `nome_legendado.srt` **ao lado do original** (o original não é tocado;
    legendando de novo vira `_legendado_2`). Botões **▶ Abrir vídeo** e **📁 Pasta** no fim.
 
+### 📥 Reels do Instagram (sem marca d'água)
+Botão **📥 Instagram** na aba Corte: digite o **@** e quantos reels (12, 30, 60, 150 ou todos) e clique em
+**Abrir no Chrome e baixar**. O perfil abre no seu Chrome e a extensão faz o resto: rola a aba Reels
+juntando os links e o programa baixa um por um, no **arquivo original — sem a marca d'água** que o botão
+"baixar" do app coloca. Também dá pra começar direto no Instagram: em qualquer perfil aparece o painel
+**Baixar reels**.
+- Salva em `reels_instagram/@perfil` (botão **📁 Pasta dos reels**), com um `reels.json` com a legenda e a
+  data de cada um. Os que você já baixou não baixam de novo.
+- **Entre na sua conta do Instagram no Chrome**: sem login ele só mostra uns 12 reels. Conta privada só
+  se você seguir. Deixe a aba do Instagram na frente enquanto ela junta os links.
+- Se o Instagram começar a bloquear, o programa para e avisa (o que já baixou fica) — tente o resto mais
+  tarde.
+- O vídeo é de quem postou: pra usar no seu canal, tenha autorização ou transforme (corte com
+  comentário, reação), senão a plataforma pode derrubar.
+
 ### 🔥 Tendências (vídeos bombando agora)
 - Coloque seus **nichos** (podcast, react, futebol, BBB...) e clique em **BUSCAR EM ALTA**.
 - **Só nos canais:** escolha esse modo e digite os canais separados por vírgula (`@flowpodcast`, o link do canal ou só o nome). Aparecem **só os vídeos desses canais** no período escolhido, sem assuntos do Brasil nem vídeos aleatórios. Se você digitar um `@` ou um link, o modo troca sozinho.

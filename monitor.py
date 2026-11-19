@@ -961,6 +961,25 @@ class Painel(BaseHTTPRequestHandler):
                 return self._enviar(200, json.dumps({"ok": False, "msg": str(e)}, ensure_ascii=False))
             log(f"🤖 IA escolhendo {trabalho['n']} momento(s) de {trabalho['url'][:60]} (pedido da extensão)")
             return self._enviar(200, json.dumps({"ok": True, "trabalho": trabalho}, ensure_ascii=False))
+        if url.path == "/instagram":                  # 📥 reels de um perfil (links juntados pela extensão)
+            try:
+                tam = int(self.headers.get("Content-Length") or 0)
+                if not 0 < tam <= 500_000:
+                    return self._enviar(413, '{"ok":false,"msg":"Pedido grande demais."}')
+                pedido = json.loads(self.rfile.read(tam).decode("utf-8"))
+                if not isinstance(pedido, dict):
+                    raise ValueError
+            except (ValueError, json.JSONDecodeError):
+                return self._enviar(400, '{"ok":false,"msg":"Pedido inválido."}')
+            import instagram
+            if pedido.get("parar"):
+                return self._enviar(200, json.dumps({"ok": instagram.parar(str(pedido["parar"])[:20])}))
+            try:
+                trabalho = instagram.iniciar(pedido.get("usuario"), [str(x)[:200] for x in (pedido.get("links") or [])[:500]])
+            except ValueError as e:
+                return self._enviar(200, json.dumps({"ok": False, "msg": str(e)}, ensure_ascii=False))
+            log(f"📥 baixando {trabalho['total']} reel(s) de @{trabalho['usuario']} (pedido da extensão)")
+            return self._enviar(200, json.dumps({"ok": True, "trabalho": trabalho}, ensure_ascii=False))
         if url.path == "/chat":                       # mensagens do chat lidas pela extensão
             try:
                 tam = int(self.headers.get("Content-Length") or 0)
@@ -995,7 +1014,8 @@ class Painel(BaseHTTPRequestHandler):
             import bot
             import ia_youtube
             return self._enviar(200, json.dumps(dict(ESTADO_PAINEL, agora=time.time(), ia=bot.status_ia(),
-                                                     versao=VERSAO_PROGRAMA, ia_momentos=ia_youtube.resumo()),
+                                                     versao=VERSAO_PROGRAMA, ia_momentos=ia_youtube.resumo(),
+                                                     instagram=__import__("instagram").resumo()),
                                                 ensure_ascii=False))
         if not getattr(self, '_post_autorizado', False):
             return self._enviar(405, '{"ok":false,"msg":"Use POST com a sessão do programa."}')

@@ -2,6 +2,25 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.26 — 📥 Reels do Instagram (sem marca d'água)
+
+- Baixa os reels de um perfil no **arquivo original** que o Instagram guarda (o mesmo que o cobalt faz):
+  sem o logo, sem o @ flutuando e sem a tela do final que o botão "baixar" do app coloca. Qualidade
+  original (testado: 1080×1920 e até 1440×2560).
+- O Instagram não deixa programa nenhum listar os reels de um perfil (testado: o yt-dlp falha no
+  perfil), então quem lista é a **extensão**: na página do perfil aparece o painel **Baixar reels**
+  (12, 30, 60, 150 ou todos); ela abre a aba Reels, rola a página sozinha juntando os links (só os deste
+  perfil — as sugestões de outras contas ficam de fora) e o programa baixa um por um.
+- No programa: botão **📥 Instagram** na aba Corte — digite o @, ele liga o monitor, abre o perfil no
+  Chrome e a extensão começa sozinha. **📁 Pasta dos reels** abre `reels_instagram/@perfil`.
+- Pausa de 2-5 s entre um reel e outro (ritmo de gente); os já baixados não baixam de novo; um reel
+  ruim não para os outros; se o Instagram começar a bloquear (3 falhas seguidas pedindo login), para e
+  avisa — o que já baixou fica. Botão ■ parar.
+- `reels.json` na pasta do perfil com a legenda, a data e a duração de cada reel.
+- Sem login o Instagram mostra só uns 12 reels: o painel avisa pra entrar na conta (no seu Chrome) e
+  clicar de novo. Com a aba do Instagram escondida a página não carrega mais — o painel espera você voltar.
+- Extensão 3.2 (recarregue em chrome://extensions); opção "Painel no Instagram" no ícone da extensão.
+
 ## 3.25 — 🤖 IA corta os melhores momentos (extensão, YouTube)
 
 - Novo cartão no topo da aba **Momentos** do painel do YouTube: escolha quantos cortes (1-5) e a
