@@ -260,6 +260,39 @@ def previa(video, op, palavras=None, t=None, largura_saida=360):
         shutil.rmtree(pasta, ignore_errors=True)
 
 
+PASTA_PREVIAS = cortes.PASTA_PROJETO / "analises" / "previas"
+
+
+def video_previa(video, palavras, op, log=print, limite_s=240) -> Path:
+    """Versão LEVE do vídeo com a legenda (lado menor 540 px, codificação rápida) pra assistir antes
+    de queimar a definitiva. Vídeo longo: só os primeiros 'limite_s' segundos. Cada prévia tem nome
+    próprio (o player pode estar com a anterior aberta) e as antigas são apagadas."""
+    import time
+    video = Path(video).resolve()
+    vi = info(video)
+    PASTA_PREVIAS.mkdir(parents=True, exist_ok=True)
+    for velha in PASTA_PREVIAS.glob("legendar_previa_*.mp4"):
+        try:
+            velha.unlink()
+        except OSError:
+            pass                                   # aberta no player: fica pra próxima
+    destino = PASTA_PREVIAS / f"legendar_previa_{int(time.time())}.mp4"
+    dur = min(vi["duracao"], float(limite_s)) if vi["duracao"] else float(limite_s)
+    pw, ph = (540, -2) if vi["largura"] <= vi["altura"] else (-2, 540)
+    pasta = _pasta_com_fontes()
+    try:
+        montar_ass(palavras, pasta / "legenda.ass", vi, op)
+        log("Preparando a prévia pra assistir" + (f" (primeiros {int(dur)} s)" if dur < vi["duracao"] else "")
+            + "...")
+        cortes.rodar(["ffmpeg", "-y", "-i", str(video), "-t", f"{dur:.2f}", "-map", "0:v:0", "-map", "0:a:0?",
+                      "-vf", f"ass=legenda.ass:fontsdir=.,scale={pw}:{ph}", "-c:v", "libx264", "-preset", "ultrafast",
+                      "-crf", "28", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart",
+                      str(destino)], cwd=pasta, progresso=("Prévia", dur))
+        return destino
+    finally:
+        shutil.rmtree(pasta, ignore_errors=True)
+
+
 def saida_para(video) -> Path:
     video = Path(video)
     destino = video.with_name(video.stem + "_legendado.mp4")

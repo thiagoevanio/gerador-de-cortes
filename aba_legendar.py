@@ -81,6 +81,7 @@ class AbaLegendar:
         la.pack(fill="x", pady=(10, 0))
         self.b_acao = app._botao(la, "📝 LEGENDAR", self.acao, cor=VERMELHO, cor_txt="white", grande=True)
         self.b_acao.pack(side="left", fill="x", expand=True)
+        self.b_assistir = app._botao(la, "▶ Assistir com a legenda", self.assistir, cor="#1E6B3A", cor_txt="white")
         self.b_cancelar = app._botao(la, "Descartar texto", self.descartar)
         self.b_abrir = app._botao(la, "▶ Abrir vídeo", lambda: self.saida and app._abrir(self.saida))
         self.b_pasta = app._botao(la, "📁 Pasta", lambda: self.saida and app._abrir(Path(self.saida).parent))
@@ -105,6 +106,7 @@ class AbaLegendar:
         topo_p.pack(fill="x")
         tk.Label(topo_p, text="Prévia no seu vídeo", bg=FUNDO, fg=CINZA, font=("Segoe UI", 9, "bold")).pack(side="left")
         app._botao(topo_p, "↻ outro quadro", self.outro_quadro).pack(side="right")
+        app._botao(topo_p, "▶ Original", lambda: self.video and app._abrir(self.video)).pack(side="right", padx=(0, 6))
         self.lbl_previa = tk.Label(dir_, bg="#0E0E11", text="(escolha um vídeo)", fg=CINZA, height=14)
         self.lbl_previa.pack(fill="x", pady=(4, 6))
         self.log = app._caixa_log(dir_, altura=8)
@@ -151,10 +153,11 @@ class AbaLegendar:
             self.barra.pack_forget()
         self.b_acao.configure(state="disabled" if ocupado else "normal",
                               text=rotulo or ("🔥 QUEIMAR LEGENDA NO VÍDEO" if self.palavras else "📝 LEGENDAR"))
-        if self.palavras and not ocupado:
+        for b in (self.b_assistir, self.b_cancelar):
+            b.pack_forget()
+        if self.palavras and not ocupado:     # revisando: dá pra assistir antes de queimar
+            self.b_assistir.pack(side="left", padx=(6, 0))
             self.b_cancelar.pack(side="left", padx=(6, 0))
-        else:
-            self.b_cancelar.pack_forget()
 
     # ------------------------------------------------------------ ações
     def escolher(self):
@@ -301,6 +304,28 @@ class AbaLegendar:
             self.estado(False)
             self.mudou()
         self._rodar(trabalho, depois, "TRANSCREVENDO... AGUARDE")
+
+    def assistir(self):
+        """Gera a versão leve com a legenda (texto revisado + estilo atual) e abre no player do PC."""
+        if self.ocupado or not self.palavras:
+            return
+        try:
+            pal = legendar.aplicar_revisao(self.palavras, self.texto.get("1.0", "end-1c"))
+        except ValueError as e:
+            return messagebox.showerror("Revisão do texto", str(e))
+        if not pal:
+            return messagebox.showerror("Legendar", "O texto ficou vazio — não sobrou legenda pra mostrar.")
+        video, op = self.video, self.opcoes()
+
+        def depois(r):
+            self.estado(False)
+            if r and r[0]:
+                self.escrever("✅ Prévia aberta no seu player. Gostou? Clique em QUEIMAR LEGENDA NO VÍDEO.")
+                self.app._abrir(r[1])
+            else:
+                self._falhou(r)
+        self._rodar(lambda: legendar.video_previa(video, pal, op, log=self.escrever), depois,
+                    "PREPARANDO A PRÉVIA... AGUARDE")
 
     def queimar(self):
         try:

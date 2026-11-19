@@ -112,6 +112,17 @@ class Video(unittest.TestCase):
                 self.assertTrue(saida.with_suffix(".srt").exists())
                 self.assertEqual(legendar.saida_para(v).name, v.stem + "_legendado_2.mp4")   # não sobrescreve
 
+    def test_video_previa_leve_pra_assistir(self):
+        with tempfile.TemporaryDirectory() as d, patch.object(legendar, "PASTA_PREVIAS", Path(d) / "previas"):
+            v = _video(d, 1920, 1080, d=6)
+            p = legendar.video_previa(v, _p(["oi", "tudo", "bem"]), legendar.opcoes_padrao(), log=lambda t: None,
+                                      limite_s=3)
+            vi = legendar.info(p)
+            self.assertEqual(vi["altura"], 540)                   # leve: lado menor 540
+            self.assertAlmostEqual(vi["duracao"], 3, delta=0.3)   # vídeo longo: só o começo
+            self.assertEqual(vi["audio"], "aac")
+            self.assertTrue(v.exists())                           # o original não é tocado
+
     def test_previa_do_proprio_video(self):
         with tempfile.TemporaryDirectory() as d:
             img = legendar.previa(_video(d, 1080, 1920), legendar.opcoes_padrao(), largura_saida=200)

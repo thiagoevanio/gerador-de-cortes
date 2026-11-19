@@ -2,6 +2,12 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.24.1 — Assistir antes de queimar
+
+- Aba Legendar: **▶ Assistir com a legenda** gera em segundos uma versão leve (lado menor 540 px) com o
+  texto revisado e o estilo atual e abre no player do PC — dá pra ajustar e assistir de novo antes de
+  queimar a definitiva. Vídeo longo: os primeiros 4 min. **▶ Original** abre o vídeo sem legenda.
+
 ## 3.24 — Aba 📝 Legendar
 
 Nova aba pra **só legendar um vídeo que já está editado** no PC — sem cortar, sem mudar o formato, sem

@@ -65,7 +65,10 @@ próprio vídeo, sem esticar a fonte) e mantém o fps original (60 fps continua 
    ligáveis) e tira "hum/éé" da legenda.
 4. Com **Revisar o texto antes de queimar** ligado, o texto aparece na caixa, **uma frase por linha** com o
    tempo na frente. Corrija o que quiser: se mudar a quantidade de palavras, o tempo da frase é redividido
-   sozinho; pra tirar uma frase, deixe só o `[tempo]` dela. Depois **🔥 QUEIMAR LEGENDA NO VÍDEO**.
+   sozinho; pra tirar uma frase, deixe só o `[tempo]` dela. **▶ Assistir com a legenda** gera em segundos
+   uma versão leve com o texto e o estilo atuais e abre no seu player (vídeo longo: os primeiros 4 min) —
+   ajuste e assista de novo quantas vezes quiser. Gostou? **🔥 QUEIMAR LEGENDA NO VÍDEO**. O botão
+   **▶ Original** (em cima da prévia) abre o vídeo sem legenda.
 5. Sai `nome_legendado.mp4` + `nome_legendado.srt` **ao lado do original** (o original não é tocado;
    legendando de novo vira `_legendado_2`). Botões **▶ Abrir vídeo** e **📁 Pasta** no fim.
 
