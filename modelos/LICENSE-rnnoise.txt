@@ -1,0 +1,4 @@
+rnnoise_voz.rnnn = modelo "beguiling-drafter" (gravação com ruído -> voz, mantém risada e sons humanos)
+Fonte: https://github.com/GregorR/rnnoise-models (beguiling-drafter-2018-08-30/bd.rnnn)
+Segundo o README do repositório, os modelos não são obra criativa e não estão sujeitos a direito autoral.
+Usado pelo filtro arnndn do FFmpeg (render.py) pra limpar a voz antes de mixar música e efeitos.

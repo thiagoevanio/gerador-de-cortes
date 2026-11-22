@@ -64,3 +64,19 @@ def previa(fonte, destino, inicio=0, fim=None):
     subprocess.run(cmd, check=True, capture_output=True, timeout=600,
                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     return Path(destino)
+
+
+def comparar(video, referencia, ajuste="", metrica="vmaf"):
+    """Nota de quão perto 'video' (depois do filtro 'ajuste', ex.: 'scale=1920:1080,unsharp=...') fica
+    da 'referencia' (o original bom). metrica: 'vmaf' (0-100, o medidor da Netflix: como uma pessoa
+    acha que ficou) ou 'ssim' (0-1: estrutura da imagem; cai quando a nitidez exagera e cria contorno).
+    É a régua usada pra escolher os filtros de imagem — nada de 'achismo'. None se não der pra medir."""
+    flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+    filtro = f"[0:v]{ajuste + ',' if ajuste else ''}setsar=1[d];[1:v]setsar=1[r];[d][r]" + (
+        "libvmaf=n_threads=4" if metrica == "vmaf" else "ssim")
+    r = subprocess.run(['ffmpeg', '-hide_banner', '-nostdin', '-i', str(video), '-i', str(referencia),
+                        '-filter_complex', filtro, '-f', 'null', '-'], capture_output=True, text=True,
+                       encoding='utf-8', errors='replace', timeout=1800, creationflags=flags)
+    padrao = r"VMAF score: ([\d.]+)" if metrica == "vmaf" else r"All:([\d.]+)"
+    achados = re.findall(padrao, r.stderr)
+    return float(achados[-1]) if achados else None

@@ -2,6 +2,30 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.29 — Voz limpa com IA, nitidez medida e tirar a música da fonte
+
+Tudo medido antes de entrar (nada no "achismo"):
+
+- **🎙 Voz limpa com IA (RNNoise)** — ligado por padrão. Tira ventoinha, teclado, chiado e barulho de
+  rua da voz e mantém a risada. No teste: **28 dB de ruído a menos** (o filtro antigo tirava 6 dB) e a
+  voz mexida 4x menos. Roda no começo do corte (a transcrição também ouve melhor) e leva ~6 s.
+  - Vídeo de **jogo ou com música alta**: a IA apagaria o som do jogo (no teste, 60% dos segundos
+    altos sumiam; em conversa, 0 a 2%) — aí ele percebe e **mantém o som original**.
+  - O filtro do FFmpeg às vezes trava no fechamento (medido: 4 a 24% das vezes, com o arquivo já
+    pronto): por isso ele roda num passo separado, confere o resultado e tenta de novo. Nunca derruba
+    o corte. Desliga em ⚙ Qualidade.
+- **🔍 Nitidez onde faltava** — medido com VMAF (o medidor de qualidade da Netflix) e SSIM contra o
+  original: a nitidez de sempre dá **+6 pontos de VMAF** sem perder nada no SSIM. Só que ela só entrava
+  com vídeo menor que 1080p, e o caso mais comum — **1080p cortado pro 9:16 (esticado 1,78x)** —
+  ficava sem. Agora entra sempre que o vídeo é esticado. (Testei também CAS, limpeza de blocos e de
+  degradê: todos deram nota **menor**, então ficaram de fora.)
+- **🎵 Tirar a música de fundo da fonte (Demucs)** — opcional, em ⚙ Qualidade. A IA separa a voz da
+  música e o corte segue só com a voz: sem música com direito autoral (TikTok mudo, YouTube bloqueando).
+  No teste: **música 33 dB mais baixa e a voz intacta**. Baixa ~1 GB uma vez (o programa pergunta antes)
+  e deixa o corte ~2x o tempo do vídeo mais lento (40 s de vídeo = +73 s). O som do jogo sai junto.
+- **📏 Medidor de qualidade** (`qualidade.comparar`): nota VMAF/SSIM de um filtro contra o original —
+  a régua usada pra decidir os filtros acima, e um teste automático garante que a escolha continua valendo.
+
 ## 3.28 — 🎞 Supercut (os melhores lances num corte só)
 
 - Novo na aba Corte: **🎞 Supercut**. Cole o link (ou escolha o vídeo do PC), marque a caixinha e

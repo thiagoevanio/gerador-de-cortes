@@ -216,8 +216,9 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
             filtro += f";{''.join(rotulos)}amix=inputs={len(rotulos)}:duration=first:normalize=0[mix]"
             fonte_audio = "[mix]"
         if cortes.AUDIO_PADRAO:
-            filtro += (f";{fonte_audio}{_cadeia_voz()},"
-                       f"{_loudnorm_medido(video)},aresample=48000,"
+            chiado = not er.get("voz_limpa")      # voz já limpa pela IA no começo do corte: sem afftdn
+            filtro += (f";{fonte_audio}{_cadeia_voz(chiado)},"
+                       f"{_loudnorm_medido(video, chiado)},aresample=48000,"
                        f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[aud]")
         else:
             filtro += (f";{fonte_audio}aresample=48000,"
@@ -238,20 +239,21 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
     for aviso in relatorio['avisos']:print('   Revisão: '+aviso)
 
 
-def _cadeia_voz():
-    """Filtros de voz do render (antes do nivelamento): tira grave de ambiente, dá presença e comprime."""
-    return (f"highpass=f=75{cortes.filtro_chiado()},"
+def _cadeia_voz(chiado=True):
+    """Filtros de voz do render (antes do nivelamento): tira grave de ambiente, dá presença e comprime.
+    chiado=False quando a voz já foi limpa pelo RNNoise (o afftdn em cima só tiraria brilho)."""
+    return (f"highpass=f=75{cortes.filtro_chiado() if chiado else ''},"
             f"equalizer=f=2800:t=q:w=1.2:g=2.0,"
             f"acompressor=threshold=-20dB:ratio=3:attack=8:release=220:makeup=2")
 
 
-def _loudnorm_medido(video: Path) -> str:
+def _loudnorm_medido(video: Path, chiado=True) -> str:
     """Nivelamento de volume em 2 passadas: mede primeiro (só o áudio, rápido) e aplica de forma
     LINEAR — sem o 'bombeamento' do modo dinâmico. Se a medição falhar, volta pro modo de sempre."""
     alvo = "loudnorm=I=-14:TP=-1.5:LRA=11"
     try:
         r = subprocess.run(["ffmpeg", "-v", "info", "-nostdin", "-i", str(video), "-map", "0:a:0",
-                            "-af", f"{_cadeia_voz()},{alvo}:print_format=json", "-f", "null", "-"],
+                            "-af", f"{_cadeia_voz(chiado)},{alvo}:print_format=json", "-f", "null", "-"],
                            capture_output=True, text=True, encoding="utf-8", errors="replace",
                            timeout=240, creationflags=cortes.SEM_JANELA)
         m = json.loads(r.stderr[r.stderr.rindex("{"):r.stderr.rindex("}") + 1])

@@ -183,6 +183,8 @@ juntando os links e o programa baixa um por um, no **arquivo original — sem a 
   - **Áudio no padrão:** volume igual em todos os cortes (-14 LUFS, o padrão do TikTok/Shorts), sem grave sujo e com a voz mais presente.
   - **Baixar em 1080p:** vídeo mais nítido (prefere H.264, que é leve de processar). As lives também gravam em 1080p — ocupa mais espaço (uns 3 GB por hora).
 - **Legenda que acerta nomes:** o Whisper recebe o nome do canal e o título do vídeo antes de transcrever, então erra bem menos nome próprio. É automático e não gasta IA.
+- **🎙 Voz limpa com IA:** tira ventoinha, teclado e barulho da voz (mantém a risada). Em vídeo de jogo ou com música alta ele percebe e mantém o som original. Desliga em ⚙ Qualidade.
+- **🎵 Tirar a música da fonte:** opcional em ⚙ Qualidade. Fica só a voz (some música com direito autoral — e o som do jogo junto). Baixa ~1 GB uma vez e deixa o corte mais lento.
 - **Qualidade (sem gastar IA):**
   - **Layout automático:** o programa olha os rostos do vídeo e escolhe sozinho:
     - **Podcast (2 pessoas lado a lado):** tela dividida, uma pessoa em cima e a outra embaixo. Quem está calado fica um pouco mais escuro e a legenda muda de cor conforme quem fala (branca = de cima, azul = de baixo).

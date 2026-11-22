@@ -219,6 +219,8 @@ CONFIG_PADRAO = {
     "compilacao_minutos": 8,        # compilação: vai somando cortes até chegar nisso
     "compilacao_deitada": True,     # usa o trecho original horizontal (tela cheia) quando dá       # transcrição do CORTE escolhido: "base", "small" ou "turbo"  # o robô atualiza as views do YouTube sozinho a cada 3h
     "usar_gpu_encoder": True,
+    "limpar_voz_ia": True,          # RNNoise (IA) limpa a voz antes da música/efeitos; sem ele, o afftdn
+    "tirar_musica_fonte": False,    # Demucs: tira a música de fundo da fonte (pesado; ⚙ Qualidade)
     "reduzir_chiado": True,         # filtro de chiado (afftdn); desligue se a live tiver música/jogo alto
     "correcoes_delta": True,        # IA manda só as palavras corrigidas (economiza ~75% dos tokens de saída)
     "cpu_threads": max(2, min(8, os.cpu_count() or 4)),
@@ -425,6 +427,7 @@ aplicar_config()
 # ============================================================
 _callback_progresso = ContextVar("progresso", default=None)
 _job_atual = ContextVar("job", default=None)
+_voz_limpa = ContextVar("voz_limpa", default=False)    # a voz deste corte já passou pelo RNNoise
 _supercut = ContextVar("supercut", default=None)       # {'marcas', 'total'} enquanto monta um supercut
 _cronometro = ContextVar("cronometro", default=None)    # [(hora, mensagem)] do corte em andamento
 
@@ -625,6 +628,18 @@ def checar_ffmpeg():
 def filtro_chiado():
     """Redutor de chiado do microfone (opcional em ⚙ Qualidade)."""
     return ",afftdn=nf=-25" if carregar_config().get("reduzir_chiado", True) else ""
+
+
+def filtro_limpeza_voz(jogo=False):
+    """',arnndn=…' (RNNoise: IA que limpa a voz — no teste tirou 28 dB de ruído contra 6 dB do afftdn,
+    mexendo menos na voz) ou o afftdn de antes. jogo=True: sem RNNoise (apagaria o som do jogo).
+    Usado num passo separado (separar_voz.limpar_voz), nunca dentro do render: o arnndn às vezes
+    trava no fechamento do FFmpeg."""
+    modelo = PASTA_PROJETO / "modelos" / "rnnoise_voz.rnnn"
+    if jogo or not carregar_config().get("limpar_voz_ia", True) or not modelo.exists():
+        return filtro_chiado()
+    caminho = str(modelo.resolve()).replace("\\", "/").replace(":", r"\:")
+    return f",arnndn=m='{caminho}'"
 
 
 def detectar_encoder_h264() -> str:
@@ -1210,6 +1225,12 @@ def _preparar_corte(fonte_video, inicio, fim, foto=None, pergunta=None, legenda=
         # robô trabalhando sozinho: sem nota mínima própria, usa a régua do automático (padrão 6)
         nota_minima = NOTA_MINIMA or (NOTA_MINIMA_AUTO if automatico else 0)
 
+    import separar_voz
+    if carregar_config().get("tirar_musica_fonte") and tem_audio(video):
+        video = separar_voz.tirar_musica(video, pasta, log) or video   # música com direito autoral fora
+    limpo = separar_voz.limpar_voz(video, pasta, log)                  # 🎙 ruído fora (a transcrição agradece)
+    _voz_limpa.set(bool(limpo))
+    video = limpo or video
     dur_orig = duracao_video(video)
     manter_unificado = [(0.0, dur_orig)]
     precisa_corte_unificado = False
@@ -1774,10 +1795,17 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
     if ajuste_exposicao:
         print("   vídeo escuro — levantando a exposição de leve.")
 
+    if tipo in ("podcast", "jogo"):              # recortes com zoom no rosto/câmera: sempre esticados
+        ampliacao = 2.0
+    elif modo == "inteiro":
+        ampliacao = LARGURA / max(1, W)
+    else:
+        ampliacao = max((ALTURA if CLEAN else ALTURA_VIDEO) / max(1, H), LARGURA / max(1, W))
+
     def estilo_de(t_):
         """Efeitos de vídeo de um template (a versão B do teste A/B pode usar outro)."""
         e_ = t_["efeitos"]
-        er_ = {"cor": ajuste_exposicao + te.filtro_cor(e_, H)}
+        er_ = {"cor": ajuste_exposicao + te.filtro_cor(e_, H, ampliacao), "voz_limpa": _voz_limpa.get()}
         if e_.get("zoom_lento") and tipo not in ("podcast", "jogo"):
             er_["zoom_lento"] = float(e_["zoom_lento"])
         if e_.get("zoom_ritmo") and tipo not in ("podcast", "jogo"):
@@ -1812,7 +1840,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
     if tipo == "podcast":
         top = efeitos.recorte(caixas["A"], W, H, LARGURA / alt_topo, zoom=3.0)
         bot = efeitos.recorte(caixas["B"], W, H, LARGURA / ALTURA_VIDEO, zoom=3.0)
-        layout = {"top": top, "bot": bot}
+        layout = {"top": top, "bot": bot, "tipo": "podcast"}
         log("Vendo quem está falando...")
         falantes = efeitos.falantes(video, caixas["A"], caixas["B"], palavras=palavras)
         if falantes:
@@ -1825,7 +1853,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
     elif tipo == "jogo":
         top = efeitos.recorte(caixas["cam"], W, H, LARGURA / alt_topo, zoom=3.4, sobe=0.05)
         bot = efeitos.recorte_centro(W, H, LARGURA / ALTURA_VIDEO)
-        layout = {"top": top, "bot": bot}
+        layout = {"top": top, "bot": bot, "tipo": "jogo"}
         rostos_px = _rostos_na_tela(analise, bot, alt_topo, ALTURA_VIDEO)
     elif modo == "cortado":
         alt_v = ALTURA if CLEAN else ALTURA_VIDEO       # clean: o vídeo ocupa a tela toda

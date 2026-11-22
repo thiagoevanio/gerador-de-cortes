@@ -46,7 +46,7 @@ _BASE = {
         "vinheta": False,
         "pop_emojis": False,        # "pop" sonoro quando o emoji aparece
         "zoom_lento": 0.0,          # 0.05 = zoom quase imperceptível do início ao fim (retenção)
-        "nitidez": True,            # lanczos + unsharp leve quando a fonte é < 1080p
+        "nitidez": True,            # unsharp leve sempre que o vídeo é ampliado (3.29: medido com VMAF/SSIM)
     },
 }
 
@@ -190,11 +190,19 @@ FILTROS_COR = {
 }
 
 
-def filtro_cor(efeitos, altura_fonte=None):
-    """Cadeia de filtros (começando com vírgula) pra cor/vinheta/nitidez do painel de vídeo."""
+def filtro_cor(efeitos, altura_fonte=None, ampliacao=None):
+    """Cadeia de filtros (começando com vírgula) pra cor/vinheta/nitidez do painel de vídeo.
+    ampliacao = quanto o vídeo é esticado na tela final (1080p cortado pro 9:16 = 1,78x).
+    Nitidez: medido em 3.29 com VMAF e SSIM contra o original — o unsharp 0,45 dá +6 de VMAF sem
+    perder nada no SSIM (mais forte começa a estragar; o CAS e a limpeza de blocos deram nota menor).
+    Antes só entrava com fonte < 1080p, e o caso mais comum (1080p cortado, 1,78x) ficava sem."""
     partes = []
-    if efeitos.get("nitidez", True) and altura_fonte and altura_fonte < 1000:
-        partes.append("unsharp=5:5:0.45:5:5:0.0")          # fonte 720p esticada: recupera nitidez
+    if ampliacao is not None:
+        esticado = ampliacao >= 1.25
+    else:
+        esticado = bool(altura_fonte and altura_fonte < 1000)
+    if efeitos.get("nitidez", True) and esticado:
+        partes.append("unsharp=5:5:0.45:5:5:0.0")
     if efeitos.get("cor") in FILTROS_COR:
         partes.append(FILTROS_COR[efeitos["cor"]])
     if efeitos.get("vinheta"):

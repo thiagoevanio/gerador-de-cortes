@@ -361,7 +361,10 @@ def configurar(parent):
             ('usar_chat_vod', 'Live antiga: baixar o chat e usar onde ele explodiu (sem IA)', True),
             ('compilacao_deitada', 'Compilação com o trecho original deitado (tela cheia)', True),
             ('usar_gpu_encoder', 'Usar o acelerador de vídeo do PC (Intel/Nvidia/AMD) quando tiver', True),
-            ('reduzir_chiado', 'Reduzir chiado do microfone (desligue se a live tiver música alta)', True)]:
+            ('limpar_voz_ia', 'Limpar a voz com IA (RNNoise: tira ventoinha, teclado e barulho; mantém risada)', True),
+            ('tirar_musica_fonte', 'Tirar a música de fundo da fonte com IA (Demucs: fica só a voz — some o som do '
+                                   'jogo também; baixa ~1 GB uma vez e deixa o corte ~2 min mais lento)', False),
+            ('reduzir_chiado', 'Reduzir chiado do microfone, quando a limpeza com IA estiver desligada', True)]:
         extras_eco[chave] = tk.BooleanVar(value=cfg.get(chave, padrao))
         ttk.Checkbutton(conteudo, text=texto, variable=extras_eco[chave]).pack(anchor='w', padx=15)
     ttk.Checkbutton(conteudo, text='Revisão técnica completa após renderizar', variable=tecnica).pack(anchor='w', padx=15)
@@ -395,6 +398,20 @@ def configurar(parent):
         do_perfil = cortes.carregar_config(perfil_config.get()); do_perfil.update(novos, retranscrever_incertos=transcricao.get())
         cortes.salvar_perfil(do_perfil, perfil_config.get())
         if hasattr(parent, 'cfg'): parent.cfg.update(atual)
+        if atual.get('tirar_musica_fonte'):
+            import separar_voz
+            if not separar_voz.instalado():
+                if messagebox.askyesno('Tirar a música', 'Pra tirar a música o programa precisa baixar a IA que '
+                                       'separa voz e música (~1 GB, só uma vez). Baixar agora?', parent=janela):
+                    import threading
+                    def instalar():
+                        ok = separar_voz.instalar(log=print)
+                        parent.after(0, lambda: messagebox.showinfo('Tirar a música', 'Pronto! Os próximos cortes saem só com a voz.'
+                                                                    if ok else 'Não consegui instalar agora. Tente de novo mais tarde.'))
+                    threading.Thread(target=instalar, daemon=True).start()
+                else:
+                    atual['tirar_musica_fonte'] = False
+                    cortes.salvar_config(atual)
         janela.destroy()
     ttk.Button(conteudo, text='Salvar', command=salvar).pack(pady=8)
     def diagnosticar():
