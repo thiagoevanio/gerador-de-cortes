@@ -151,7 +151,8 @@ def trocar_pergunta(video, pergunta, destaque=None):
             tinha = [x for x in extras_txt if x[3] in ('Gancho', 'GanchoMeio')]
             extras_txt = [x for x in extras_txt if x[3] not in ('Gancho', 'GanchoMeio')]
             if tinha:
-                extras_txt.append((tinha[0][0], tinha[0][1], cortes.texto_gancho_ass(pergunta, destaque),
+                pos = cortes.posicao_gancho(tinha[0][2])     # mantém o lugar (desviando do rosto)
+                extras_txt.append((tinha[0][0], tinha[0][1], pos + cortes.texto_gancho_ass(pergunta, destaque),
                                    tinha[0][3]))
             topo, faixa, y_faixa = local(r['topo']), local(r['faixa']), r['y_faixa']
         else:

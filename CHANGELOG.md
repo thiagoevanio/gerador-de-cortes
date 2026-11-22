@@ -2,6 +2,21 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.27 — Gancho fora do rosto, legenda fora do texto do vídeo e silêncio pelo volume
+
+- **Pergunta do gancho não tampa mais o rosto** (estilo clean): o revisor vê onde o rosto fica e, se
+  a pergunta cair em cima dele, ela vai pra cima do rosto (se couber abaixo dos botões do app) ou logo
+  abaixo dele — sem descer até a legenda. Trocar a pergunta na Central de edição mantém o lugar.
+- **Legenda não briga com texto que já vem no vídeo**: legenda do jogo, vídeo que já veio legendado...
+  O revisor acha a faixa de letras gravadas embaixo (letras alinhadas, centralizadas, que mudam com o
+  tempo — logo de camiseta, janela clara e letreiro parado não contam) e põe a nossa logo acima dela.
+- **Tirar silêncios pelo volume do próprio vídeo**: antes o corte era em -32 dB fixo e, com microfone
+  baixo, comia final de palavra (no teste, o mesmo áudio 16 dB mais baixo perdia 4,4 s de fala). Agora
+  o limite acompanha a fala do vídeo — áudio normal continua igual. Trava: se as "pausas" passarem de
+  40% do corte, não corta nada (é medida errada, não pausa).
+- **Modo PC fraco** agora usa mesmo o Whisper "base" na legenda (o "small" de fábrica sempre ganhava).
+- ⚙ Qualidade: a opção **turbo** da legenda do corte diz o que custa (~3x mais lenta, baixa 1,6 GB uma vez).
+
 ## 3.26.2 — Correções da análise completa
 
 - **Prévia da aba Visual**: não quebra mais quando a limpeza automática do Windows apaga a pasta Temp

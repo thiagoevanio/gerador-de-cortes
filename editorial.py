@@ -345,7 +345,7 @@ def configurar(parent):
     ttk.Checkbutton(conteudo,text='Agrupar acontecimentos com IA (chamada adicional no radar)',variable=grupos_ia).pack(anchor='w',padx=15)
     transcricao = tk.BooleanVar(value=cfg.get('retranscrever_incertos', False))
     ttk.Label(conteudo, text='Legenda do corte final (a busca de momentos usa sempre o base, rápido):').pack(anchor='w', padx=15, pady=(10,0))
-    nomes_whisper = {'small (recomendado)': 'small', 'base (mais rápido)': 'base', 'turbo (máximo, lento)': 'turbo'}
+    nomes_whisper = {'small (recomendado)': 'small', 'base (mais rápido)': 'base', 'turbo (mais preciso, ~3x mais lento; baixa 1,6 GB uma vez)': 'turbo'}
     v_whisper = tk.StringVar(value=next((k for k, v in nomes_whisper.items() if v == cfg.get('whisper_final', 'small')), 'small (recomendado)'))
     ttk.Combobox(conteudo, textvariable=v_whisper, values=list(nomes_whisper), state='readonly').pack(fill='x', padx=15)
     ttk.Label(conteudo, text='Economia (desligado = gasta menos IA e processador):').pack(anchor='w', padx=15, pady=(10,0))

@@ -749,6 +749,8 @@ def modelo_final(nome=None):
         cfg = carregar_config()
         padrao = "base" if cfg.get("modo_pc_fraco") else "small"     # modo PC fraco: legenda ~2x mais rápida
         nome = str(cfg.get("whisper_final") or padrao)
+        if cfg.get("modo_pc_fraco") and nome == "small":   # o "small" de fábrica sempre vinha no config e
+            nome = "base"                                 # o PC fraco nunca usava o base que promete
     return nome if nome in ("tiny", "base", "small", "medium", "turbo", "large-v3") else "small"
 
 
@@ -867,7 +869,8 @@ from faixas import (  # noqa: E402,F401 - faixa, foto do topo, selos e emojis: f
 )
 
 from legendas import (  # noqa: E402,F401 - legendas .ass/.srt: legendas.py
-    COR_FALANTE_B, blocos_legenda, gerar_ass, gerar_ass_blocos, gerar_srt, tempo_ass, tempo_srt, texto_gancho_ass,
+    COR_FALANTE_B, blocos_legenda, gerar_ass, gerar_ass_blocos, gerar_srt, posicao_gancho, tempo_ass, tempo_srt,
+    texto_gancho_ass,
 )
 
 from render import (  # noqa: E402,F401 - render.py
@@ -1800,7 +1803,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
             print(f"   música de fundo: {faixa_m.name} (abaixa quando falam)")
 
     # ---- enquadramento ----
-    layout, expr_x, falantes, rostos_px = None, None, None, []
+    layout, expr_x, falantes, rostos_px, texto_px = None, None, None, [], None
     if tipo == "podcast":
         top = efeitos.recorte(caixas["A"], W, H, LARGURA / alt_topo, zoom=3.0)
         bot = efeitos.recorte(caixas["B"], W, H, LARGURA / ALTURA_VIDEO, zoom=3.0)
@@ -1835,6 +1838,10 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
             else:
                 print("   sem rosto claro — usando o centro.")
         rostos_px = _rostos_na_tela(analise, (cw, ch, painel[0], painel[1]), 0 if CLEAN else alt_topo, alt_v)
+        faixa_txt = efeitos.faixa_texto_fixa(analise)     # legenda que já vem gravada (jogo, vídeo legendado)
+        if faixa_txt:
+            y0_v, k_v = (0 if CLEAN else alt_topo), alt_v / ch
+            texto_px = tuple(y0_v + (f * H - painel[1]) * k_v for f in faixa_txt)
 
     # ---- faixa / topo ----
     if CLEAN:
@@ -1854,7 +1861,13 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
         """Estilo clean: a pergunta vira texto na tela nos primeiros segundos."""
         if not (CLEAN and TEXTO_GANCHO and pergunta_txt):
             return []
-        return [(0.0, 3.6, texto_gancho_ass(pergunta_txt, destaque), "GanchoMeio" if usa_layout else "Gancho")]
+        y = None
+        if REVISOR and rostos_px and not usa_layout:     # desvia do rosto (sem descer até a legenda)
+            y = acabamento.y_gancho_livre(rostos_px, acabamento.altura_gancho(pergunta_txt), 250,
+                                          max(60, zona["topo"]), ALTURA - margem - TAMANHO_LEGENDA * 1.5 - 40)
+            if y is not None:
+                print(f"   revisor: pergunta do gancho movida pra não tampar o rosto (topo em {y}px).")
+        return [(0.0, 3.6, texto_gancho_ass(pergunta_txt, destaque, y=y), "GanchoMeio" if usa_layout else "Gancho")]
     if REVISOR and rostos_px and img_faixa:
         y_faixa = _faixa_longe_dos_rostos(rostos_px, y_faixa, img_faixa, alt_topo - 520)
         if y_faixa != y_base_faixa:
@@ -1865,6 +1878,12 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
             margem = efeitos.margem_legenda_segura(rostos_px, base_m, TAMANHO_LEGENDA, ALTURA, minimo=20)
             if margem != base_m:
                 print(f"   revisor: legenda movida pra não ficar em cima do rosto (margem {margem}).")
+    if REVISOR and texto_px and legenda and palavras:
+        base_m = margem
+        margem = efeitos.margem_longe_do_texto(texto_px, base_m, TAMANHO_LEGENDA, ALTURA, minimo=20)
+        if margem != base_m:
+            print(f"   revisor: o vídeo já tem legenda gravada embaixo — a nossa foi pra margem {margem} "
+                  "(sem uma tampar a outra).")
 
     # ---- emojis, selo da parte e aviso de continuação ----
     # onde começa a área livre do vídeo (abaixo da faixa; no clean, abaixo dos botões do topo)

@@ -327,14 +327,25 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return destino
 
 
-def texto_gancho_ass(pergunta, destaque=None):
-    """A pergunta como TEXTO (estilo clean): maiúsculas, palavras de destaque em amarelo."""
+RE_POS_GANCHO = re.compile(r"^\{\\an8\\pos\(\d+,\d+\)\}")
+
+
+def posicao_gancho(texto) -> str:
+    """O '{\\an8\\pos(540,Y)}' do começo do texto do gancho (mantém o lugar quando troca a pergunta)."""
+    m = RE_POS_GANCHO.match(texto or "")
+    return m.group(0) if m else ""
+
+
+def texto_gancho_ass(pergunta, destaque=None, y=None):
+    """A pergunta como TEXTO (estilo clean): maiúsculas, palavras de destaque em amarelo.
+    y: topo do bloco na tela (pra desviar do rosto); None = o lugar padrão do estilo."""
+    pos = "{\\an8\\pos(%d,%d)}" % (cortes.LARGURA // 2, int(y)) if y is not None else ""
     alvo = {re.sub(r"\W", "", d.upper()) for d in (destaque or []) if isinstance(d, str)}
     cor = cortes.cor_ass(cortes.COR_LEGENDA_DESTAQUE)
     partes = []
     for w in (pergunta or "").upper().replace("{", "").replace("}", "").split():
         partes.append("{\\c" + cor + "}" + w + "{\\c&HFFFFFF&}" if re.sub(r"\W", "", w) in alvo else w)
-    return " ".join(partes)
+    return pos + " ".join(partes)
 
 
 def gerar_srt(palavras, textos, destino: Path):

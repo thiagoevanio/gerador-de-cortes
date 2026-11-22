@@ -133,6 +133,26 @@ def recortar_wav_mantidos(wav_entrada: Path, wav_saida: Path, manter, fade_ms=16
 
 
 # ---------------- silêncios ----------------
+def limiar_silencio(video: Path, padrao=-32.0):
+    """Volume (dB) abaixo do qual é 'pausa' NESTE vídeo. Antes era fixo em -32 dB: com microfone baixo
+    (fala 16 dB mais baixa) o mesmo áudio perdia 4,4 s de fala por minuto e meio. Agora segue a fala:
+    o pico típico dos trechos falados (75% dos pedacinhos de 50 ms ficam abaixo dele) menos 26 dB —
+    num áudio normal dá os mesmos -32 dB de antes."""
+    try:
+        import numpy as np
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-i", str(video), "-map", "0:a:0", "-ac", "1",
+                              "-ar", "8000", "-f", "s16le", "-"], capture_output=True, timeout=180,
+                             creationflags=cortes.SEM_JANELA).stdout
+        a = np.frombuffer(raw, np.int16).astype(np.float32) / 32768
+        if len(a) < 8000 * 3:
+            return padrao
+        w = a[: len(a) // 400 * 400].reshape(-1, 400)
+        pico = 20 * np.log10(np.abs(w).max(1) + 1e-9)
+        return float(min(-20.0, max(-55.0, np.percentile(pico, 75) - 26)))
+    except (OSError, subprocess.SubprocessError, ValueError, ImportError):
+        return padrao
+
+
 def achar_silencios(video: Path, limiar_db=-32, minimo=0.55):
     r = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(video), "-af",
                         f"silencedetect=noise={limiar_db}dB:d={minimo}", "-f", "null", "-"],
@@ -182,7 +202,7 @@ def intervalos_sem_silencio(video: Path, folga=0.12, dur=None):
     """Calcula os intervalos (manter, removidos, segundos_removidos) das pausas longas
     sem recodificar o vídeo."""
     dur = float(dur if dur is not None else cortes.duracao_video(video))
-    silencios = achar_silencios(video)
+    silencios = achar_silencios(video, limiar_db=round(limiar_silencio(video), 1))
     manter, removidos, pos = [], [], 0.0
     for ini, fim in silencios:
         fim = dur if fim is None else fim
@@ -201,6 +221,9 @@ def intervalos_sem_silencio(video: Path, folga=0.12, dur=None):
     ULTIMOS_MANTIDOS = None
     if removido < 1.0 or not manter:
         return [(0.0, round(dur, 4))], [], 0.0
+    if removido > 0.4 * dur:                     # trava: "pausa" demais = medida errada (áudio estranho);
+        print(f"   ⚠ as pausas dariam {removido:.0f}s de {dur:.0f}s — não corto, pra não comer fala.")
+        return [(0.0, round(dur, 4))], [], 0.0   # melhor deixar as pausas que cortar o que importa
     return manter, removidos, round(removido, 3)
 
 
@@ -664,12 +687,13 @@ def analisar_rostos(video: Path, passo=0.5, largura=640):
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
     W = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
     H = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
-    amostras, cortes_cena, anterior_cena = [], [], None
+    amostras, cortes_cena, anterior_cena, linhas_texto = [], [], None, []
     try:
         for idx, frame in amostras_video(cap, passo):
             h, w = frame.shape[:2]
             alt = int(largura * h / w)
             peq = cv2.resize(frame, (largura, alt))
+            linhas_texto.append(_linhas_com_texto(cv2, peq))
             mini = cv2.resize(cv2.cvtColor(peq, cv2.COLOR_BGR2GRAY), (32, 18))
             if anterior_cena is not None and float(cv2.absdiff(mini, anterior_cena).mean()) > 40:
                 cortes_cena.append(idx / fps)
@@ -683,7 +707,102 @@ def analisar_rostos(video: Path, passo=0.5, largura=640):
         return None
     finally:
         cap.release()
-    return {"w": W, "h": H, "amostras": amostras, "cortes_cena": cortes_cena}
+    return {"w": W, "h": H, "amostras": amostras, "cortes_cena": cortes_cena, "linhas_texto": linhas_texto}
+
+
+def _linhas_com_texto(cv2, frame):
+    """Linhas de LETRAS gravadas no quadro (legenda do jogo, legenda antiga): [(y0, y1, x0, x1)] de 0 a 1.
+    Letra = pedaço quase branco com contorno escuro, do tamanho de letra; linha = 5+ letras lado a lado
+    na mesma altura. Logo de camiseta, janela clara e roupa branca não formam linha assim."""
+    import numpy as np
+    g = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    H, W = g.shape
+    branco = (g > 210).astype(np.uint8)
+    escuro = cv2.dilate((g < 70).astype(np.uint8), np.ones((3, 3), np.uint8))
+    perto = cv2.dilate(escuro, np.ones((5, 5), np.uint8))
+    n, _, st, _ = cv2.connectedComponentsWithStats(branco, 8)
+    letras = []
+    for i in range(1, n):
+        x, y, w, h, area = st[i]
+        if not (0.007 * H <= h <= 0.06 * H and w <= 2.2 * h and area >= 0.15 * w * h and y > 0.3 * H):
+            continue
+        borda = perto[max(0, y - 1):y + h + 1, max(0, x - 1):x + w + 1]
+        if borda.mean() < 0.25:                    # letra de legenda tem contorno/sombra escura em volta
+            continue
+        letras.append((x, y, w, h))
+    letras.sort(key=lambda l: l[1] + l[3] / 2)
+    linhas, usadas = [], [False] * len(letras)
+    for i, (x, y, w, h) in enumerate(letras):
+        if usadas[i]:
+            continue
+        cy = y + h / 2
+        grupo = [j for j, (x2, y2, w2, h2) in enumerate(letras)
+                 if not usadas[j] and abs((y2 + h2 / 2) - cy) <= 0.45 * h and 0.6 <= h2 / h <= 1.6]
+        if len(grupo) < 5:
+            continue
+        xs = sorted(letras[j][0] for j in grupo)
+        if max(b - a for a, b in zip(xs, xs[1:])) > 4 * h:     # letras espalhadas não são uma linha
+            continue
+        for j in grupo:
+            usadas[j] = True
+        x0 = min(letras[j][0] for j in grupo)
+        x1 = max(letras[j][0] + letras[j][2] for j in grupo)
+        y0 = min(letras[j][1] for j in grupo)
+        y1 = max(letras[j][1] + letras[j][3] for j in grupo)
+        if x1 - x0 >= 0.12 * W and 0.3 <= (x0 + x1) / 2 / W <= 0.7:   # legenda: larga e centralizada
+            linhas.append((y0 / H, y1 / H, x0 / W, x1 / W))
+    return linhas
+
+
+def faixa_texto_fixa(analise, de=0.45, minimo_frac=0.2):
+    """Faixa (y_ini, y_fim, de 0 a 1) da parte de baixo do vídeo onde aparece LEGENDA gravada em boa
+    parte do tempo (legenda do jogo/do vídeo original). None se não tiver. A nossa legenda foge dela.
+    Legenda de verdade muda: some entre uma fala e outra ou muda de largura — letreiro parado não conta."""
+    amostras = (analise or {}).get("linhas_texto") or []
+    if len(amostras) < 4:
+        return None
+    linhas = [(k, l) for k, ls in enumerate(amostras) for l in ls if l[0] >= de]
+    if not linhas:
+        return None
+    grupos = []                                            # linhas na mesma altura (± 4%) = mesma faixa
+    for k, l in sorted(linhas, key=lambda x: x[1][0]):
+        for g in grupos:
+            if l[0] <= g["y1"] + 0.04 and l[1] >= g["y0"] - 0.04:
+                g["y0"], g["y1"] = min(g["y0"], l[0]), max(g["y1"], l[1])
+                g["quadros"].add(k)
+                g["larguras"].append(l[3] - l[2])
+                break
+        else:
+            grupos.append({"y0": l[0], "y1": l[1], "quadros": {k}, "larguras": [l[3] - l[2]]})
+    bons = []
+    for g in grupos:
+        freq = len(g["quadros"]) / len(amostras)
+        ls = g["larguras"]
+        muda = freq <= 0.9 or (max(ls) - min(ls)) >= 0.08
+        if freq >= minimo_frac and muda and g["y1"] - g["y0"] <= 0.25:
+            bons.append(g)
+    if not bons:
+        return None
+    g = max(bons, key=lambda g: len(g["quadros"]))
+    return (max(0.0, g["y0"] - 0.01), min(1.0, g["y1"] + 0.01))
+
+
+def margem_longe_do_texto(faixa_px, margem, tamanho, altura_tela=1920, minimo=20, folga=18):
+    """Se a legenda cai em cima do texto que já está gravado no vídeo (faixa_px = (y_ini, y_fim) na
+    tela final), devolve a margem mais perto da escolhida que deixa a legenda ACIMA ou ABAIXO dele."""
+    if not faixa_px:
+        return margem
+    alt_leg = tamanho * 1.35
+    leg_ini, leg_fim = altura_tela - margem - alt_leg, altura_tela - margem
+    t_ini, t_fim = faixa_px
+    if leg_fim <= t_ini or leg_ini >= t_fim:
+        return margem
+    opcoes = [int(altura_tela - t_ini + folga)]                     # legenda logo acima do texto
+    abaixo = int(altura_tela - (t_fim + folga + alt_leg))
+    if abaixo >= minimo:
+        opcoes.append(abaixo)                                       # ou logo abaixo dele
+    opcoes = [o for o in opcoes if o <= altura_tela * 0.6]          # nunca sobe pra metade de cima
+    return min(opcoes, key=lambda o: abs(o - margem)) if opcoes else margem
 
 
 def trajetoria_de(analise):

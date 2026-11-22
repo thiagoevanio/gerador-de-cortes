@@ -31,6 +31,41 @@ def y_acima_ou_abaixo(altura, margem_leg, tamanho_leg, altura_item, topo_livre, 
     return max(int(topo_livre), min(abaixo, int(altura - zona_baixo - altura_item - 20)))
 
 
+def altura_gancho(texto, tamanho=88, largura_util=940):
+    """Altura (px na tela 1920) do bloco da pergunta do gancho (estilo Gancho: fonte 88, margens 70)."""
+    import re
+    limpo = re.sub(r"\{[^}]*\}", "", texto or "")
+    por_linha = max(8, int(largura_util / (tamanho * 0.56)))
+    linhas, atual = 1, 0
+    for p in limpo.split():
+        if atual and atual + 1 + len(p) > por_linha:
+            linhas, atual = linhas + 1, len(p)
+        else:
+            atual += (1 if atual else 0) + len(p)
+    return int(linhas * tamanho * 1.18 + 20)
+
+
+def y_gancho_livre(rostos_px, altura_bloco, y_padrao=250, topo_min=160, limite_baixo=1500, folga=24):
+    """A pergunta do gancho (estilo clean) fica no alto da tela — muitas vezes bem em cima do rosto.
+    Se ela tampar rosto em boa parte do vídeo, devolve um Y novo pro topo dela: acima do rosto (se
+    couber abaixo dos botões do app) ou logo abaixo dele (sem descer até a legenda). None = fica onde está."""
+    if not rostos_px:
+        return None
+    ini, fim = y_padrao, y_padrao + altura_bloco
+    batem = [r for r in rostos_px if r[0] < fim and r[1] > ini]
+    if len(batem) < 0.3 * len(rostos_px):
+        return None
+    topo = sorted(r[0] for r in batem)[int(len(batem) * 0.2)]
+    base = sorted(r[1] for r in batem)[min(len(batem) - 1, int(len(batem) * 0.8))]
+    acima = int(topo - altura_bloco - folga)
+    if acima >= topo_min:
+        return acima
+    abaixo = int(base + folga)
+    if abaixo + altura_bloco <= limite_baixo:
+        return abaixo
+    return None
+
+
 # ------------------------------------------------------------------ zoom nas palavras-chave
 def tempos_enfase(palavras, gancho_t=None, duracao=None, intervalo=1.8, maximo=6):
     """Instantes das palavras marcadas com 'enfase', espaçados e longe do soco do gancho."""
