@@ -48,19 +48,25 @@ def ids_dos_links(links, limite=500) -> list[str]:
     return vistos
 
 
+RE_TEMPORARIO = re.compile(r"^~[0-9a-f]{8}_(.+)$")     # nome de passagem do organizar()
+
+
+def _id_do_arquivo(p: Path) -> str:
+    """'ID.mp4', '007 - 2026-11-19 - ID.mp4' ou o nome de passagem '~1a2b3c4d_ID.mp4' → ID."""
+    m = RE_TEMPORARIO.match(p.stem)
+    return m.group(1) if m else p.stem.rsplit(" - ", 1)[-1]
+
+
 def arquivo_do_reel(pasta: Path, rid: str):
-    """O .mp4 desse reel na pasta: 'ID.mp4' (jeito antigo) ou '007 - 2026-11-19 - ID.mp4'."""
+    """O .mp4 desse reel na pasta, com qualquer um dos nomes que ele pode ter."""
     antigo = pasta / f"{rid}.mp4"
     if antigo.exists():
         return antigo
-    return next((p for p in pasta.glob("*.mp4") if p.name.endswith(f" - {rid}.mp4")), None)
+    return next((p for p in pasta.glob("*.mp4") if _id_do_arquivo(p) == rid), None)
 
 
 def _ja_baixados(pasta: Path) -> set[str]:
-    ids = set()
-    for p in pasta.glob("*.mp4"):
-        ids.add(p.stem.rsplit(" - ", 1)[-1])
-    return ids
+    return {_id_do_arquivo(p) for p in pasta.glob("*.mp4")}
 
 
 def _quando(dados: dict) -> float:
@@ -80,7 +86,10 @@ def _quando(dados: dict) -> float:
 def organizar(pasta: Path) -> int:
     """Renomeia os reels da pasta do MAIS RECENTE pro mais antigo: '001 - 2026-11-19 - ID.mp4' (o 001 é
     sempre o mais novo; chegou reel novo, renumera). Também põe a data de modificação do arquivo = data da
-    postagem. Assim a pasta fica em ordem no Windows, por nome ou por data. Devolve quantos organizou."""
+    postagem. Assim a pasta fica em ordem no Windows, por nome ou por data. Devolve quantos organizou.
+
+    Se um vídeo estiver aberto no player (o Windows não deixa renomear), desfaz o que já tinha mexido e
+    avisa com OSError: a pasta continua como estava e organiza da próxima vez."""
     import os
     indice = _indice(pasta)
     presentes = []
@@ -90,21 +99,33 @@ def organizar(pasta: Path) -> int:
             presentes.append((-_quando(dados), ordem, rid, arq))   # empate: a ordem em que veio (mais nova antes)
     presentes.sort()
     largura = max(3, len(str(len(presentes))))
-    temporarios = []
-    for _q, _o, rid, arq in presentes:                 # 2 passos: nome temporário, depois o final (sem colisão)
-        tmp = arq.with_name(f"~{uuid.uuid4().hex[:8]}_{rid}.mp4")
-        arq.rename(tmp)
-        temporarios.append((rid, tmp))
-    for n, (rid, tmp) in enumerate(temporarios, 1):
-        dados = indice[rid]
-        quando = _quando(dados)
+    planos = []                                        # (rid, arquivo atual, nome final, quando)
+    for n, (_q, _o, rid, arq) in enumerate(presentes, 1):
+        quando = _quando(indice[rid])
         dia = time.strftime("%Y-%m-%d", time.localtime(quando)) if quando else "sem-data"
-        final = pasta / f"{n:0{largura}d} - {dia} - {rid}.mp4"
+        if quando and not indice[rid].get("timestamp"):  # só o dia: meio-dia, um segundo a menos por posição
+            quando += 43200 - n                        # (no mesmo dia, o mais novo continua na frente)
+        planos.append((rid, arq, pasta / f"{n:0{largura}d} - {dia} - {rid}.mp4", quando))
+    # 2 passos (nome de passagem, depois o final) só pra quem muda de nome: sem colisão entre eles
+    mudar = [(rid, arq, final) for rid, arq, final, _ in planos if arq.name != final.name]
+    passagem = []
+    try:
+        for rid, arq, final in mudar:
+            tmp = arq.with_name(f"~{uuid.uuid4().hex[:8]}_{rid}.mp4")
+            arq.rename(tmp)
+            passagem.append((arq, tmp, final))
+    except OSError:
+        for arq, tmp, _ in reversed(passagem):         # desfaz: ninguém fica com nome de passagem
+            try:
+                tmp.rename(arq)
+            except OSError:
+                pass                                   # (se nem isso der, o nome de passagem é reconhecido)
+        raise
+    for _arq, tmp, final in passagem:
         tmp.rename(final)
-        dados["arquivo"] = final.name
+    for rid, _arq, final, quando in planos:
+        indice[rid]["arquivo"] = final.name
         if quando:
-            if not dados.get("timestamp"):         # só o dia: meio-dia, um segundo a menos por posição
-                quando += 43200 - n                # (no mesmo dia, o mais novo continua na frente)
             try:
                 os.utime(final, (quando, quando))
             except OSError:
@@ -224,7 +245,8 @@ def _rodar(trabalho, ids, pasta, baixar, pausa):
             trabalho["atual"] = "organizando a pasta do mais recente pro mais antigo..."
             organizar(pasta)
         except OSError:
-            pass                                         # arquivo aberto no player: organiza na próxima
+            if trabalho.get("msg"):                      # vídeo aberto no player: organiza na próxima
+                trabalho["msg"] += " (Feche o vídeo que está aberto pra pasta ficar em ordem — arruma na próxima.)"
         trabalho["fim"] = time.time()
         trabalho["atual"] = ""
         _PARAR.discard(trabalho["id"])

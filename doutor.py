@@ -53,8 +53,12 @@ BIBLIOTECAS = [("yt-dlp", "yt_dlp"), ("yt-dlp-ejs", "yt_dlp_ejs"), ("faster-whis
                ("opencv", "cv2"), ("google-api", "googleapiclient"),
                ("google-auth", "google_auth_oauthlib"), ("openpyxl", "openpyxl"),
                ("qrcode", "qrcode")]
-PIP_NOMES = ["yt-dlp", "yt-dlp-ejs", "streamlink", "faster-whisper", "numpy", "Pillow", "opencv-python-headless",
-             "google-api-python-client", "google-auth-oauthlib", "openpyxl", "qrcode"]
+# módulo → nome no pip (um dicionário: lista paralela já desalinhou e reinstalava a biblioteca errada)
+PIP_DO_MODULO = {"yt_dlp": "yt-dlp", "yt_dlp_ejs": "yt-dlp-ejs", "streamlink": "streamlink",
+                 "faster_whisper": "faster-whisper", "numpy": "numpy", "PIL": "Pillow",
+                 "cv2": "opencv-python-headless", "googleapiclient": "google-api-python-client",
+                 "google_auth_oauthlib": "google-auth-oauthlib", "openpyxl": "openpyxl", "qrcode": "qrcode"}
+PIP_NOMES = list(PIP_DO_MODULO.values())
 
 
 # ======================================================================
@@ -484,9 +488,7 @@ def conserto_instalar_bibliotecas(log):
 def conserto_reinstalar_bibliotecas(log):
     py = python_do_venv()
     faltam = faltando_em(py) or []
-    nomes = [p for p, m in zip(PIP_NOMES, ["yt_dlp", "streamlink", "faster_whisper", "numpy", "PIL", "cv2",
-                                           "googleapiclient", "google_auth_oauthlib", "openpyxl", "qrcode"])
-             if m in faltam] or PIP_NOMES
+    nomes = [PIP_DO_MODULO[m] for m in faltam if m in PIP_DO_MODULO] or PIP_NOMES
     rc, _ = rodar([py, "-m", "pip", "install", "--force-reinstall", "--no-cache-dir", "--prefer-binary", *nomes], log=log)
     return rc == 0 and not faltando_em(py)
 

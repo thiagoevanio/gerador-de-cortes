@@ -12,6 +12,10 @@ async function api(acao, params = {}, corpo = null, reconectar = true) {
   try {
     if (!tokenSessao && acao !== "status") {
       const sessao = await fetch(`${BASE}/sessao`, { signal: controller.signal });
+      if (sessao.status === 403) {          // o programa não reconheceu esta extensão (ID diferente)
+        const e = await sessao.json().catch(() => ({}));
+        return { ok: false, offline: true, msg: e.msg || OFF.msg };
+      }
       if (!sessao.ok) throw new Error("Sessão indisponível");
       tokenSessao = (await sessao.json()).token;
     }
@@ -27,7 +31,7 @@ async function api(acao, params = {}, corpo = null, reconectar = true) {
     }
     if (!r.ok) {
       const erro = await r.json().catch(() => ({}));
-      return { ok: false, msg: erro.msg || `Erro HTTP ${r.status}` };
+      return { ok: false, ...(r.status === 403 ? { offline: true } : {}), msg: erro.msg || `Erro HTTP ${r.status}` };
     }
     return await r.json();
   } finally { clearTimeout(timer); }

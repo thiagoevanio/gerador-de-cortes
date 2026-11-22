@@ -63,8 +63,8 @@ def renderizar(video: Path, topo: Path, legenda: Path | None, saida: Path, modo:
         a, b = previa                             # uma 2ª leitura do MESMO arquivo com -ss (seek rápido),
         entradas = ["-ss", f"{a:.3f}", "-to", f"{b:.3f}", "-i", video.name, "-i", video.name]
         idx = 2                                   # pra não decodificar o vídeo inteiro duas vezes
-        pre = (f"[0:v]setpts=PTS-STARTPTS[pgv];[1:v]setpts=PTS-STARTPTS[prv];"
-               f"[pgv][prv]concat=n=2:v=1:a=0[vcat];")
+        pre = ("[0:v]setpts=PTS-STARTPTS[pgv];[1:v]setpts=PTS-STARTPTS[prv];"
+               "[pgv][prv]concat=n=2:v=1:a=0[vcat];")
         vsrc = "[vcat]"
     fator = []
     if gancho_t is not None and not layout:      # "soco" de zoom: sobe até 14% e volta em ~0,7s

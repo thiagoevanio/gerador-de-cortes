@@ -25,6 +25,30 @@ SEM_JANELA = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 _servidor = None
 _estado = {"pin": None, "url": None, "tarefas": {}, "sessoes": set()}
+# chute de PIN: depois de ERROS_MAX erros seguidos, NINGUÉM entra por BLOQUEIO_S segundos (nem com o PIN
+# certo — senão quem chuta em paralelo acertaria do mesmo jeito)
+ERROS_MAX, BLOQUEIO_S = 5, 300
+_tentativas = {"erros": 0, "ate": 0.0}
+_TRAVA_PIN = threading.Lock()
+
+
+def conferir_pin(pin: str):
+    """True (entrou), False (PIN errado) ou o nº de segundos que falta do bloqueio."""
+    with _TRAVA_PIN:
+        agora = time.time()
+        if _tentativas["ate"] > agora:
+            return int(_tentativas["ate"] - agora) + 1
+        if _estado["pin"] and secrets.compare_digest(str(pin), _estado["pin"]):
+            _tentativas["erros"] = 0
+            return True
+        _tentativas["erros"] += 1
+        if _tentativas["erros"] >= ERROS_MAX:
+            _tentativas.update(erros=0, ate=agora + BLOQUEIO_S)
+        return False
+
+
+def pin_novo() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def ip_local():
@@ -293,7 +317,11 @@ class Handler(BaseHTTPRequestHandler):
         corpo = self.rfile.read(min(tam, 10000)).decode("utf-8", "ignore") if tam else ""
         if url.path == "/entrar":
             pin = parse_qs(corpo).get("pin", [""])[0].strip()
-            if _estado["pin"] and secrets.compare_digest(pin, _estado["pin"]):
+            ok = conferir_pin(pin)
+            if ok is not True and ok is not False:
+                return self._pagina(CORPO_PIN.replace("__ERRO__", f'<p style="color:#ff6b6b">Muitas tentativas erradas. '
+                                                                  f'Espere {ok // 60 + 1} min.</p>'))
+            if ok:
                 sessao = secrets.token_urlsafe(24)
                 _estado["sessoes"].add(sessao)
                 return self._enviar(303, "", extra={
@@ -331,7 +359,7 @@ def iniciar(pin=None):
     global _servidor
     if _servidor:
         return _estado["url"], _estado["pin"]
-    _estado["pin"] = pin or f"{secrets.randbelow(10000):04d}"
+    _estado["pin"] = pin or pin_novo()
     _servidor = ThreadingHTTPServer(("0.0.0.0", PORTA), Handler)
     threading.Thread(target=_servidor.serve_forever, daemon=True).start()
     _estado["url"] = f"http://{ip_local()}:{PORTA}"

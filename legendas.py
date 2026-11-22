@@ -275,6 +275,58 @@ def _sem_sobreposicao(eventos):
     return outros + [f"Dialogue: 0,{tempo_ass(ini)},{tempo_ass(fim)},{resto}" for ini, fim, resto in limpos]
 
 
+def _partes_numa_linha(texto, medir, limite, max_letras=24):
+    """Frase → pedaços que cabem numa linha só (pela largura real da fonte; sem a fonte, por letras)."""
+    partes, atual = [], []
+    for p in texto.split():
+        teste = " ".join(atual + [p])
+        cabe = medir(teste) <= limite if medir else len(teste) <= max_letras
+        if atual and not cabe:
+            partes.append(" ".join(atual))
+            atual = []
+        atual.append(p)
+    if atual:
+        partes.append(" ".join(atual))
+    return partes
+
+
+def gerar_ass_blocos(blocos, destino: Path, duracao=0.0):
+    """Legenda por blocos (sem destaque palavra a palavra) — usada na versão traduzida. Igual à
+    principal: cada frase é dividida pra caber numa linha (o tempo dela é repartido pelo tamanho de
+    cada pedaço) e nenhuma legenda encavala na outra — senão ela pula de altura e pisca."""
+    cab = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: {cortes.LARGURA}
+PlayResY: {cortes.ALTURA}
+WrapStyle: 2
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Leg,{cortes.FONTE_LEGENDA},{cortes.TAMANHO_LEGENDA},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,7,3,2,60,60,{cortes.MARGEM_LEGENDA},1
+Style: Marca,{cortes.FONTE_LEGENDA},40,&H50FFFFFF,&H50FFFFFF,&H70000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,3,40,36,36,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    medir = medidor_legenda(cortes.FONTE_LEGENDA, cortes.TAMANHO_LEGENDA)
+    limite = cortes.LARGURA - 2 * (60 + 7 + 3)        # margens do estilo + contorno + sombra
+    ev = []
+    if cortes.MARCA and duracao:
+        marca = cortes.MARCA if cortes.MARCA.startswith("@") else "@" + cortes.MARCA
+        ev.append(f"Dialogue: 1,0:00:00.00,{tempo_ass(duracao + 1)},Marca,,0,0,0,,{marca}")
+    for ini, fim, texto in blocos:
+        t = texto.upper().replace("{", "").replace("}", "")
+        partes = _partes_numa_linha(t, medir, limite) or [t]
+        total = sum(len(p) for p in partes) or 1
+        comeco = ini
+        for i, p in enumerate(partes):
+            final = fim if i == len(partes) - 1 else comeco + (fim - ini) * len(p) / total
+            ev.append(f"Dialogue: 0,{tempo_ass(comeco)},{tempo_ass(final)},Leg,,0,0,0,,{{\\q2}}{p}")
+            comeco = final
+    destino.write_text(cab + "\n".join(_sem_sobreposicao(ev)) + "\n", encoding="utf-8")
+    return destino
+
+
 def texto_gancho_ass(pergunta, destaque=None):
     """A pergunta como TEXTO (estilo clean): maiúsculas, palavras de destaque em amarelo."""
     alvo = {re.sub(r"\W", "", d.upper()) for d in (destaque or []) if isinstance(d, str)}

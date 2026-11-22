@@ -867,7 +867,7 @@ from faixas import (  # noqa: E402,F401 - faixa, foto do topo, selos e emojis: f
 )
 
 from legendas import (  # noqa: E402,F401 - legendas .ass/.srt: legendas.py
-    COR_FALANTE_B, blocos_legenda, gerar_ass, gerar_srt, tempo_ass, tempo_srt, texto_gancho_ass,
+    COR_FALANTE_B, blocos_legenda, gerar_ass, gerar_ass_blocos, gerar_srt, tempo_ass, tempo_srt, texto_gancho_ass,
 )
 
 from render import (  # noqa: E402,F401 - render.py
@@ -943,33 +943,6 @@ def contar_parecidos(titulo, canal=""):
         if chave and len(chave & outras) / len(chave) >= 0.5:
             n += 1
     return n
-
-
-def gerar_ass_blocos(blocos, destino: Path, duracao=0.0):
-    """Legenda por blocos (sem destaque palavra a palavra) — usada na versão traduzida."""
-    cab = f"""[Script Info]
-ScriptType: v4.00+
-PlayResX: {LARGURA}
-PlayResY: {ALTURA}
-WrapStyle: 0
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Leg,{FONTE_LEGENDA},{TAMANHO_LEGENDA},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,7,3,2,60,60,{MARGEM_LEGENDA},1
-Style: Marca,{FONTE_LEGENDA},40,&H50FFFFFF,&H50FFFFFF,&H70000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,3,40,36,36,1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-"""
-    ev = []
-    if MARCA and duracao:
-        marca = MARCA if MARCA.startswith("@") else "@" + MARCA
-        ev.append(f"Dialogue: 1,0:00:00.00,{tempo_ass(duracao + 1)},Marca,,0,0,0,,{marca}")
-    for ini, fim, texto in blocos:
-        t = texto.upper().replace("{", "").replace("}", "")
-        ev.append(f"Dialogue: 0,{tempo_ass(ini)},{tempo_ass(fim)},Leg,,0,0,0,,{t}")
-    destino.write_text(cab + "\n".join(ev) + "\n", encoding="utf-8")
-    return destino
 
 
 def versao_espanhol(video, palavras, textos, dados, meta, ficha, saida, pasta, modo,

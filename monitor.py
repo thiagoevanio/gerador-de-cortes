@@ -530,7 +530,6 @@ def verificar_clips_twitch(canal, cfg, estado, fila):
 
 def processar_pendentes_youtube(cfg, estado, fila):
     dur = cfg["duracao_corte_seg"]
-    n = cfg["cortes_por_video_youtube"]
     for vid, p in list(estado["pendentes"].items()):
         url = f"https://www.youtube.com/watch?v={vid}"
         idade_h = (time.time() - p["desde"]) / 3600
@@ -694,6 +693,12 @@ def executar(tarefa, cfg, fila):
 # PAINEL (localhost:8765) + botão "Cortar agora" da extensão do Chrome
 # ============================================================
 TOKEN_SESSAO = secrets.token_urlsafe(32)
+# só a NOSSA extensão (o ID vem da "key" do manifest.json, igual em qualquer PC): outra extensão do Chrome
+# não consegue pegar o token nem mandar comando
+ID_EXTENSAO = "lcadmjbfbmmdpkpcengdielodgbkcngh"
+ORIGEM_EXTENSAO = f"chrome-extension://{ID_EXTENSAO}"
+MSG_ORIGEM = ("Origem não permitida. Se for a extensão do Cortes: em chrome://extensions remova ela e "
+              "clique em 'Carregar sem compactação' de novo na pasta extensao_chrome.")
 FILA_ATIVA = None
 PORTA = 8765
 COMANDOS: "queue.Queue[dict]" = queue.Queue()
@@ -882,7 +887,7 @@ class Painel(BaseHTTPRequestHandler):
         origem = self.headers.get('Origin', '')
         return (host in (f'localhost:{PORTA}', f'127.0.0.1:{PORTA}') and
                 (not origem or origem in (f'http://localhost:{PORTA}', f'http://127.0.0.1:{PORTA}') or
-                 re.fullmatch(r'chrome-extension://[a-p]{32}', origem)))
+                 origem == ORIGEM_EXTENSAO))
 
     def _autorizado(self):
         return self._origem_permitida() and secrets.compare_digest(self.headers.get('X-Cortes-Token', ''), TOKEN_SESSAO)
@@ -905,7 +910,7 @@ class Painel(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         if not self._origem_permitida():
-            return self._enviar(403, '{"ok":false,"msg":"Origem não permitida"}')
+            return self._enviar(403, json.dumps({"ok": False, "msg": MSG_ORIGEM}))
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", self.headers.get('Origin', f'http://localhost:{PORTA}'))
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -926,6 +931,12 @@ class Painel(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if not self._autorizado():
+            # lê (e joga fora) o corpo antes de recusar: fechar com dado não lido faz o Windows
+            # derrubar a conexão (WinError 10053) e quem pediu nem via a mensagem
+            try:
+                self.rfile.read(min(int(self.headers.get("Content-Length") or 0), 2_000_000))
+            except (ValueError, OSError):
+                pass
             return self._enviar(403, '{"ok":false,"msg":"Sessão inválida. Reconecte a extensão."}')
         self._post_autorizado = True
         url = urlparse(self.path)
@@ -1001,7 +1012,7 @@ class Painel(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if not self._origem_permitida():
-            return self._enviar(403, '{"ok":false,"msg":"Origem não permitida"}')
+            return self._enviar(403, json.dumps({"ok": False, "msg": MSG_ORIGEM}))
         url = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(url.query).items()}
         if url.path in ("/", "/painel"):

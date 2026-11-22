@@ -7,11 +7,17 @@ from PIL import Image, ImageDraw
 import cortes
 
 _PASTA = Path(tempfile.gettempdir()) / "cortes_previa"
-_PASTA.mkdir(exist_ok=True)
 _FOTO = _PASTA / "foto_exemplo.png"
 
 
+def _garantir_pasta():
+    """A pasta fica no Temp do Windows, que a limpeza automática pode apagar com o programa aberto:
+    recria sempre antes de usar (senão a prévia da aba Visual quebra até reiniciar)."""
+    _PASTA.mkdir(parents=True, exist_ok=True)
+
+
 def _foto_exemplo():
+    _garantir_pasta()
     if _FOTO.exists():
         return _FOTO
     im = Image.new("RGB", (1280, 720))
@@ -130,6 +136,7 @@ def _previa_clean(cfg, altura):
 
 
 def gerar_previa(cfg, altura=540):
+    _garantir_pasta()
     cortes.aplicar_config(cfg)
     if cortes.CLEAN:
         return _previa_clean(cfg, altura)

@@ -818,9 +818,8 @@ class App(tk.Tk):
         """Galeria no celular: liga o servidorzinho e mostra endereço + PIN + QR code."""
         import celular
         try:
-            if not self.cfg.get("pin_celular"):          # PIN fixo: não muda a cada vez que abre
-                import secrets
-                self.cfg["pin_celular"] = f"{secrets.randbelow(10000):04d}"
+            if len(str(self.cfg.get("pin_celular") or "")) < 6:   # PIN fixo (não muda a cada vez que abre),
+                self.cfg["pin_celular"] = celular.pin_novo()          # 6 dígitos: 4 era fácil de chutar
                 self._salvar_cfg()
             url, pin = celular.iniciar(self.cfg["pin_celular"])
         except OSError as e:
@@ -1907,7 +1906,6 @@ class App(tk.Tk):
         if self.perfil_visual not in cortes.nomes_perfis():
             self.perfil_visual = "Padrão"
         self.cfg_perfil = cortes.carregar_config(self.perfil_visual)
-        cp = self.cfg_perfil
         self._carregando = True
 
         def rot(pai, txt):

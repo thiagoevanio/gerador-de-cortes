@@ -34,6 +34,9 @@ if ($LASTEXITCODE -ne 0) { throw "O Inno Setup deu erro (código $LASTEXITCODE).
 Remove-Item $pacote -Recurse -Force
 if ($Teste) { return }
 $exe = Get-Item "dist\Instalar-Gerador-de-Cortes-$versao.exe"
+# só os 2 instaladores mais novos ficam na pasta dist (os antigos ocupavam ~3 MB cada)
+Get-ChildItem "dist\Instalar-Gerador-de-Cortes-*.exe" | Where-Object { $_.Name -notlike "*TESTE*" } |
+    Sort-Object LastWriteTime -Descending | Select-Object -Skip 2 | Remove-Item -Force -ErrorAction SilentlyContinue
 Write-Host ""
 Write-Host ("PRONTO: {0}  ({1:N0} MB)" -f $exe.FullName, ($exe.Length / 1MB)) -ForegroundColor Green
 Write-Host "Mande esse arquivo pra quem quiser instalar: dois cliques e ele faz o resto."

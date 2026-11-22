@@ -19,11 +19,9 @@ from __future__ import annotations
 
 import argparse
 import difflib
-import hashlib
 import json
 import math
 import re
-import time
 import unicodedata
 from pathlib import Path
 from infraestrutura import salvar_json, exclusividade

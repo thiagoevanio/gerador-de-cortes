@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Cortes 9:16",
-  "version": "3.2",
+  "version": "3.3",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlf+O31EFtkyCOaCV3LQmZVlprWBQK2i57dLQYiBYuCSL6a9jW1Y6itbU0OdkcLjOrLX/sk9Sfv36dlPRvUJu07iq1JwZYTh9jqboDgg9aZ2bAJtd+FNgfWcM8dWV6FXTqvb5+Vgn4cWmSpUpfpMGvXsg3NPr1ENgEuvPqgcidmfFIOqNJkLQ04Du4qHNFt+PifzAQ5I9/+4ZrBMdVefOT14/Maizk7fNhySNB5VNnM/hKKhIeg1z0pBBX/bTLXyTLmabXLPOCEnSTJhf0IT55lMBLqOFJ9mOQizlEv+RCB6Ng2/0ADyNJhlDBvKwT9g+ymywSOHjxZCfUGqF7uDIwQIDAQAB",
   "description": "Grava a live que você abrir, lê o chat, acha os melhores momentos e corta com um clique. Bot com IA embutido (Twitch, Kick e YouTube).",
   "permissions": [
     "notifications",

@@ -2,6 +2,26 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.26.2 — Correções da análise completa
+
+- **Prévia da aba Visual**: não quebra mais quando a limpeza automática do Windows apaga a pasta Temp
+  com o programa aberto (a pasta é recriada na hora).
+- **Reels do Instagram**: com um vídeo aberto no player o Windows não deixa renomear; antes a pasta
+  podia ficar com nomes `~1a2b3c4d_ID.mp4` e esses reels baixavam de novo, duplicados. Agora ela desfaz
+  o que mexeu e organiza na próxima vez (e avisa pra fechar o vídeo). Pasta já em ordem não é mexida.
+- **Examinar PC (Doutor)**: o conserto "reinstalar bibliotecas" reinstalava a biblioteca errada (a
+  lista estava desalinhada — faltando o Whisper, reinstalava o streamlink). Corrigido.
+- **Galeria no celular**: PIN de **6 dígitos** (o de 4 é trocado sozinho) e, depois de 5 PINs errados,
+  ninguém entra por 5 minutos — ninguém no mesmo Wi-Fi consegue ficar chutando.
+- **Extensão**: o programa agora só conversa com a extensão do Cortes (ID fixo); outra extensão do
+  Chrome não consegue mais pegar a senha interna nem mandar comando. **Remova a extensão em
+  chrome://extensions e carregue de novo** (Carregar sem compactação → pasta `extensao_chrome`).
+- **Legenda da versão em espanhol**: recebeu a mesma correção da 3.23 — cada frase é dividida pra
+  caber numa linha e nenhuma encavala na outra (não pula nem pisca).
+- Monitor: quando recusava um pedido (sessão vencida), às vezes a conexão caía antes da resposta e a
+  extensão via "desligado" em vez da mensagem. Agora a resposta sempre chega.
+- O gerador de instalador deixa só os 2 mais novos na pasta `dist`; limpeza de código sem uso.
+
 ## 3.26.1 — Reels sempre do mais recente pro mais antigo
 
 - A pasta do perfil fica em ordem: `001 - 2026-11-19 - ID.mp4` (o **001 é sempre o mais recente**; chegou
