@@ -319,6 +319,9 @@ class App(tk.Tk):
             tk.Label(auto, text=txt, bg=CARTAO, fg=CINZA, font=("Segoe UI", 9)).pack(side="left", padx=(10, 2))
             tk.Spinbox(auto, from_=a_, to=b_, textvariable=var, width=4, bg=CAMPO, fg=TEXTO,
                        buttonbackground=CAMPO, relief="flat", insertbackground=TEXTO).pack(side="left")
+        self.v_supercut = tk.BooleanVar(value=False)
+        ttk.Checkbutton(auto, text="🎞 Supercut (junta os lances num corte só: #N … #1)",
+                        variable=self.v_supercut, command=self._modo_achar).pack(side="left", padx=(12, 0))
 
         tempos = tk.Frame(esq, bg=CARTAO)
         tempos.pack(fill="x")
@@ -440,16 +443,20 @@ class App(tk.Tk):
         self._abrir(p)
 
     def _modo_achar(self):
+        if self.v_supercut.get():            # supercut também acha os momentos sozinho
+            self.v_achar.set(True)
         estado = "disabled" if self.v_achar.get() else "normal"
         self.e_ini.configure(state=estado)
         self.e_fim.configure(state=estado)
-        self.b_gerar.configure(text="ACHAR MOMENTOS E GERAR CORTES" if self.v_achar.get() else "GERAR CORTE")
+        self.b_gerar.configure(text="ACHAR OS LANCES E GERAR O SUPERCUT" if self.v_supercut.get() else
+                               "ACHAR MOMENTOS E GERAR CORTES" if self.v_achar.get() else "GERAR CORTE")
 
     def _gerar(self):
         if self.gerando:
             return
         link = self.e_link.get().strip().strip('"')
-        achar = self.v_achar.get()
+        achar = self.v_achar.get() or self.v_supercut.get()
+        supercut_ = self.v_supercut.get()
         ini, fim = self.e_ini.get().strip(), self.e_fim.get().strip()
         tempo_ok = lambda t: bool(re.fullmatch(r"\d+(:\d{1,2}){0,2}(\.\d+)?", t))  # noqa: E731
         if not link:
@@ -488,6 +495,11 @@ class App(tk.Tk):
                 cortes.MODELO_WHISPER = modelo
                 if not achar:
                     return True, str(cortes.gerar_corte(link, ini, fim, formato=formato, **opcoes))
+                if supercut_:                # 'cortes' = quantos lances; 'seg' = duração total do supercut
+                    import supercut
+                    lances = max(supercut.MIN_LANCES, qtd)
+                    return True, str(supercut.gerar(link, lances, max(6, min(15, durc / lances)),
+                                                    chat_arquivo=chat_arq, **opcoes))
                 import momentos
                 achados, meta = momentos.achar_momentos(link, qtd, durc, log=print, chat_arquivo=chat_arq)
                 extra = {} if re.match(r"^https?://", link) else {"meta": meta}

@@ -2,6 +2,22 @@
 
 As mudanças mais novas ficam em cima.
 
+## 3.28 — 🎞 Supercut (os melhores lances num corte só)
+
+- Novo na aba Corte: **🎞 Supercut**. Cole o link (ou escolha o vídeo do PC), marque a caixinha e
+  clique: ele acha os melhores lances e junta num Short só, em **contagem** — `#3`, `#2`… e o **`#1` (em
+  amarelo) fecha o vídeo**, o que segura a pessoa até o fim. `cortes:` = quantos lances (3 a 8);
+  `seg:` = quanto o supercut dura no total (cada lance fica com 6 a 15 s).
+- De cada momento ele pega só a parte **mais agitada** (risada, grito, reação), começando e terminando
+  num respiro — não corta palavra no meio.
+- Em cada virada: **whoosh** + flash rápido, e a legenda começa um bloco novo (não emenda a última fala
+  de um lance com a primeira do outro).
+- Passa pelo corte de sempre: legenda, template, rosto, revisor, capa, pergunta e título da IA (que
+  promete o "TOP N"). Sem prévia do gancho repetida no começo (a contagem já é o gancho) e sem dividir
+  em partes.
+- A IA escolhe trecho que funciona sozinho como corte e às vezes aprova só 1 ou 2: aí ele completa com
+  os trechos mais agitados do áudio (eles abrem a contagem; os da IA ficam pro fim).
+
 ## 3.27 — Gancho fora do rosto, legenda fora do texto do vídeo e silêncio pelo volume
 
 - **Pergunta do gancho não tampa mais o rosto** (estilo clean): o revisor vê onde o rosto fica e, se

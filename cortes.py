@@ -425,6 +425,7 @@ aplicar_config()
 # ============================================================
 _callback_progresso = ContextVar("progresso", default=None)
 _job_atual = ContextVar("job", default=None)
+_supercut = ContextVar("supercut", default=None)       # {'marcas', 'total'} enquanto monta um supercut
 _cronometro = ContextVar("cronometro", default=None)    # [(hora, mensagem)] do corte em andamento
 
 def log(msg):
@@ -1238,6 +1239,10 @@ def _preparar_corte(fonte_video, inicio, fim, foto=None, pergunta=None, legenda=
         except ImportError:
             print("   ⚠ faster-whisper não instalado — seguindo sem transcrição.")
 
+    if _supercut.get() and palavras:     # supercut: onde cada lance começa viaja junto das palavras
+        import supercut
+        supercut.marcar_palavras(palavras, [efeitos.tempo_sem_silencio(t, manter_unificado)
+                                            for t in _supercut.get()["marcas"]])
     # live: marca a palavra do lance (o chat reagiu ali) — a marca acompanha os cortes de vícios
     if refinar and foco is not None and palavras:
         min(palavras, key=lambda p: abs(p["ini"] - foco))["foco"] = True
@@ -1595,7 +1600,7 @@ def _finalizar_corte(st, dados):
                 dur_total = t1 - t0
 
     # ---- IA apara as pontas fracas (começo que não prende / fim que sobra) ----
-    if APARAR_IA and palavras and not st.get("refinar"):
+    if APARAR_IA and palavras and not st.get("refinar") and not _supercut.get():
         import acabamento
         i_a = next((i for i, p in enumerate(palavras) if p.get("ap_ini")), None)
         i_b = next((i for i, p in enumerate(palavras) if p.get("ap_fim")), None)
@@ -1637,7 +1642,7 @@ def _finalizar_corte(st, dados):
 
     # ---- corte em série (parte 1 termina no suspense) ----
     partes = [(video, palavras, textos, analise, None)]
-    ks = next((i for i, p in enumerate(palavras) if p.get("serie")), None) if pedir_serie else None
+    ks = next((i for i, p in enumerate(palavras) if p.get("serie")), None)         if pedir_serie and not _supercut.get() else None
     if ks is not None and 0 < ks < len(palavras):
         s_t = palavras[ks]["ini"]
         fim1 = min(s_t, palavras[ks - 1]["fim"] + 0.25)
@@ -1705,7 +1710,7 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
     boom = None
     t_virada = None                               # onde a prévia do gancho termina e o vídeo começa
     # prévia do gancho no primeiro segundo (não na série: cada parte já começa no ponto certo)
-    prefixar = GANCHO_INICIO and not parte and gancho_t is not None and duracao_video(video) - gancho_t > 2
+    prefixar = GANCHO_INICIO and not parte and gancho_t is not None and duracao_video(video) - gancho_t > 2         and not _supercut.get()                  # supercut: a contagem já é o gancho
     if prefixar and gancho_t < GANCHO_DISTANCIA_MIN:
         print(f"   gancho já está perto do começo ({gancho_t:.1f}s) — sem prévia repetida.")
         prefixar = False
@@ -1937,6 +1942,12 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
 
     extras, avisos = montar_extras(margem)
     avisos = avisos + ganchos(dados["pergunta"], dados.get("destaque"))
+    viradas_sc = []
+    if _supercut.get():                          # selo #N em cada lance + whoosh e flash na virada
+        import supercut
+        txt_sc, viradas_sc = supercut.contagem(palavras, _supercut.get()["total"], duracao,
+                                               3.6 if CLEAN and TEXTO_GANCHO else 0.0)
+        avisos = avisos + txt_sc
     tempos_pop = [e["ini"] for e in extras if Path(e["png"]).name.startswith("emoji_") and e["ini"] > 0.2]
 
     def com_sons(er_, e_):
@@ -1946,6 +1957,11 @@ def _montar_corte(video, palavras, textos, analise, tipo, caixas, parte, dados, 
             er_["sfx"] = [{"arquivo": str(pop), "t": round(t, 2), "vol": 0.45} for t in tempos_pop[:4]]
         if estilo_render.get("musica"):
             er_["musica"] = estilo_render["musica"]
+        if viradas_sc:
+            wh = efeitos.gerar_whoosh(pasta, duracao=0.45)
+            er_["sfx"] = [{"arquivo": str(wh), "t": round(max(0.0, t - 0.22), 2), "vol": 0.5}
+                          for t in viradas_sc] + list(er_.get("sfx") or [])
+            er_["flash"] = list(er_.get("flash") or [])[:1] + viradas_sc
         return er_
     com_sons(estilo_render, efx)
 

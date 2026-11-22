@@ -50,6 +50,7 @@ Abra pelo atalho, ou com dois cliques em `interface.bat`.
 ### ✂ Corte
 - **Normal:** cole o link, coloque início e fim e clique em GERAR CORTE.
 - **🔎 Achar os melhores momentos sozinho:** marque a caixinha, diga quantos cortes quer e clique. O sistema escolhe os trechos.
+- **🎞 Supercut:** marque a caixinha e ele junta os melhores lances num corte só, em contagem (#3, #2… o **#1** fecha o vídeo), com whoosh em cada virada. `cortes:` = quantos lances; `seg:` = duração total.
 - **Topo:** escolha entre *Automático* (thumbnail do YouTube ou um frame), *Estilo thumbnail ✨* (a IA escolhe o frame e ele ganha zoom, cores fortes e um emoji) ou *Frame escolhido pela IA*.
 - **Perfil:** *Automático (pelo canal)* escolhe o perfil sozinho pelo canal de origem, ou você força um.
 
